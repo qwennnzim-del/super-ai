@@ -16,6 +16,27 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+@keyframes gradientCycle {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.gradient-text-animated {
+  background: linear-gradient(270deg, #ff6b6b, #ff8e8b, #ff7eb3, #ff416c, #ff4b2b);
+  background-size: 300% 300%;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: gradientCycle 5s ease infinite;
+}
+
 /* Loader from User */
 .loader {
   --color-one: #ffbf48;
@@ -301,4 +322,12 @@ body {
 }
 .markdown-body tr:nth-child(even) {
   background-color: #f9fafb;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

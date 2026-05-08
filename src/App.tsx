@@ -1,6 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
-import { Plus, Sparkles, Mic, ChevronDown, Menu, Frame, SquareArrowUpRight, Bot, Check, Copy } from "lucide-react";
+import { Sparkles, Mic, ChevronDown, Menu, Frame, SquareArrowUpRight, Bot, Check, Copy, MessageSquare, Trash2, LogOut, X, Search, Mail, Lock, Eye, Globe, Camera, Image as ImageIcon, FileText, Paperclip, Plus, Crown, ThumbsUp, Share2, Palette, BookOpen, MonitorPlay, Table, Briefcase, Download } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { auth, db, googleAuthProvider, handleFirestoreError, OperationType } from './firebase';
+import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
+import { collection, query, where, orderBy, onSnapshot, setDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { motion, AnimatePresence } from "motion/react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -25,6 +28,99 @@ const ArrowUpIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 const GripHorizontalIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="9" r="1"/><circle cx="19" cy="9" r="1"/><circle cx="5" cy="9" r="1"/><circle cx="12" cy="15" r="1"/><circle cx="19" cy="15" r="1"/><circle cx="5" cy="15" r="1"/></svg>
+);
+
+const TRANSLATIONS = {
+  id: {
+    hello: "Hii,",
+    howCanIHelp: "Ada yang bisa saya bantu?",
+    myProfile: "Profil Saya",
+    settings: "Pengaturan",
+    dearUser: "User yang terhormat",
+    currentCredit: "Kredit saat ini",
+    freeCredit: "Kredit gratis",
+    dailyCredit: "Kredit harian",
+    resetCreditInfo: "Kredit direset pada 00:00 setiap hari",
+    upgradePremiumInfo: "Tingkatkan ke Premium untuk mendapatkan fitur lebih!",
+    personaDetails: "Persona Details",
+    manageAccount: "Manage Account",
+    logoutTitle: "Logout",
+    logoutDesc: "Keluar dari akun Anda saat ini di perangkat ini.",
+    deleteAccountTitle: "Hapus Akun",
+    deleteAccountDesc: "Hapus secara permanen data profil dan riwayat percakapan.",
+    save: "Simpan",
+    cancel: "Batal",
+    typeMessage: "Tanya Super",
+    insufficientCredit: "Kredit Anda tidak mencukupi untuk menggunakan model Pro. Silakan gunakan model Standar, atau tingkatkan kredit Anda.",
+    modelStandardDesc: "Model ringan dengan respons lebih cepat, cocok untuk tugas-tugas sederhana.",
+    modelProDesc: "Model cerdas, lebih detail dalam penalaran kompleks. Membutuhkan waktu lebih lama. Menggunakan kredit.",
+    chatHistory: "Riwayat Chat",
+    loginWithGoogle: "Login dengan Google",
+    welcomeText: "Selamat datang! Silakan login untuk memulai.",
+    emptyHistory: "Belum ada riwayat",
+    searchPlaceholder: "Cari riwayat...",
+    stopGenerating: "Hentikan",
+    languageTitle: "Bahasa",
+    languageDesc: "Pilih bahasa antarmuka aplikasi",
+    premiumAccess: "Premium Access",
+    freeAccess: "Free Access",
+    newChat: "Mulai Chat Baru",
+    smartSearch: "Pencarian Pintar",
+    pleaseLogin: "Silahkan Login",
+    mustLogin: "Anda harus login untuk menggunakan aplikasi ini.",
+    starting: "Memulai...",
+    fast: "Standar",
+    pro: "Pro",
+    profileIncomplete: "Profil belum lengkap",
+    searchNotFound: "Pencarian tidak ditemukan",
+  },
+  en: {
+    hello: "Hii,",
+    howCanIHelp: "How can I help you?",
+    myProfile: "My Profile",
+    settings: "Settings",
+    dearUser: "Dear user",
+    currentCredit: "Current credits",
+    freeCredit: "Free credits",
+    dailyCredit: "Daily credits",
+    resetCreditInfo: "Credits reset at 00:00 every day",
+    upgradePremiumInfo: "Upgrade to Premium to get more features!",
+    personaDetails: "Persona Details",
+    manageAccount: "Manage Account",
+    logoutTitle: "Logout",
+    logoutDesc: "Log out of your current account on this device.",
+    deleteAccountTitle: "Delete Account",
+    deleteAccountDesc: "Permanently delete profile data and conversation history.",
+    save: "Save",
+    cancel: "Cancel",
+    typeMessage: "Ask Super",
+    insufficientCredit: "Insufficient credits to use Pro model. Please use the Standard model, or upgrade your credits.",
+    modelStandardDesc: "Lightweight model with faster response, suitable for simple tasks.",
+    modelProDesc: "Smart model, more detailed in complex reasoning. Takes more time. Uses credits.",
+    chatHistory: "Chat History",
+    loginWithGoogle: "Login with Google",
+    welcomeText: "Welcome! Please login to start.",
+    emptyHistory: "No history yet",
+    searchPlaceholder: "Search history...",
+    stopGenerating: "Stop",
+    languageTitle: "Language",
+    languageDesc: "Select app interface language",
+    premiumAccess: "Premium Access",
+    freeAccess: "Free Access",
+    newChat: "New Chat",
+    smartSearch: "Smart Search",
+    pleaseLogin: "Please Login",
+    mustLogin: "You must login to use this app.",
+    starting: "Starting...",
+    fast: "Standard",
+    pro: "Pro",
+    profileIncomplete: "Profile incomplete",
+    searchNotFound: "Search not found",
+  }
+};
+
+const CircleUserRoundIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M17.925 20.056a6 6 0 0 0-11.851.001"/><circle cx="12" cy="11" r="4"/><circle cx="12" cy="12" r="10"/></svg>
 );
 
 const CodeBlock = ({ node, inline, className, children, ...props }: any) => {
@@ -69,101 +165,600 @@ const CodeBlock = ({ node, inline, className, children, ...props }: any) => {
 // Initialize Gemini API
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
+type Attachment = {
+  name: string;
+  mimeType: string;
+};
+
 type Message = {
   id: string;
-  role: "user" | "model";
+  role: "user" | "model" | "system";
   text: string;
+  createdAt?: any;
+  groundingChunks?: any[];
+  attachments?: Attachment[];
+};
+
+type Chat = {
+  id: string;
+  title: string;
+  userId: string;
+  createdAt: any;
+  updatedAt: any;
+};
+
+const LoginScreen = ({ onClose, onLoginWithGoogle }: { onClose: () => void, onLoginWithGoogle: () => void }) => {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#f4f7fb] font-sans">
+      <button onClick={onClose} className="absolute top-6 right-6 p-2 bg-white rounded-full shadow-sm hover:bg-gray-50 text-gray-500">
+        <X size={20} />
+      </button>
+      <div className="bg-white rounded-[2rem] w-full max-w-[360px] p-8 shadow-sm">
+        <h2 className="text-[26px] font-bold text-black mb-1">Sign in</h2>
+        <p className="text-[13px] text-gray-500 mb-8">
+          New user? <a href="#" className="font-bold text-black hover:underline cursor-pointer">Create an account</a>
+        </p>
+
+        <div className="space-y-4 mb-6">
+          <div className="relative">
+             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+               <Mail className="w-5 h-5 text-gray-400" strokeWidth={1.5} />
+             </div>
+             <input type="email" placeholder="Email Address" className="w-full bg-[#f8f9fa] border-none rounded-xl py-3.5 pl-11 pr-4 text-sm text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-black/5 outline-none transition-all" />
+          </div>
+          
+          <div className="relative">
+             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+               <Lock className="w-5 h-5 text-gray-400" strokeWidth={1.5} />
+             </div>
+             <input type="password" placeholder="Password" className="w-full bg-[#f8f9fa] border-none rounded-xl py-3.5 pl-11 pr-11 text-sm text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-black/5 outline-none transition-all" />
+             <button className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors">
+                <Eye className="w-4 h-4" strokeWidth={2} />
+             </button>
+          </div>
+
+          <div className="flex justify-start">
+             <a href="#" className="text-[12px] text-black font-semibold hover:underline mt-1 cursor-pointer">Forgot password?</a>
+          </div>
+        </div>
+
+        <button className="w-full bg-black text-white rounded-full py-3.5 text-sm font-semibold mb-8 hover:bg-gray-900 transition-colors shadow-md">
+          Login
+        </button>
+        
+        <div className="relative flex items-center justify-center mb-8">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-200"></div>
+          </div>
+          <div className="relative bg-white px-4 text-[11px] text-gray-400 uppercase tracking-wider">or</div>
+        </div>
+
+        <button 
+          onClick={onLoginWithGoogle}
+          className="w-full flex items-center justify-center gap-3 bg-white border border-gray-200 rounded-full py-3 text-sm font-medium hover:bg-gray-50 transition-all shadow-sm active:scale-[0.98]"
+        >
+          <svg width="20" height="20" viewBox="0 0 48 48">
+             <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+             <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+             <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+             <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+          </svg>
+          Continue with Google
+        </button>
+        
+        <div className="mt-8 text-center px-4">
+           <p className="text-[10px] text-gray-400 leading-relaxed">
+             By signing in with an account, you agree to SO's<br/>
+             <a href="#" className="font-semibold text-gray-500 hover:text-black hover:underline cursor-pointer">Terms of Service</a> and <a href="#" className="font-semibold text-gray-500 hover:text-black hover:underline cursor-pointer">Privacy Policy</a>.
+           </p>
+        </div>
+        
+      </div>
+    </div>
+  );
 };
 
 export default function App() {
+  const [showLoginScreen, setShowLoginScreen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Auth & Chat State
+  const [user, setUser] = useState<User | null>(null);
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [streamingText, setStreamingText] = useState<string | null>(null);
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [pendingMediaTask, setPendingMediaTask] = useState<'generate_image' | 'search_image' | null>(null);
+  const [appMode, setAppMode] = useState<"chat" | "generate_image" | "search_image" | "learn">("chat");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [likedIds, setLikedIds] = useState<string[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<any>(null);
+  const [aiModel, setAiModel] = useState<"gemini-2.5-flash" | "gemini-2.5-pro">("gemini-2.5-pro");
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [profileTab, setProfileTab] = useState<"profile" | "settings">("profile");
+  const [language, setLanguage] = useState<"id" | "en">(() => {
+    return (localStorage.getItem("app_language") as "id" | "en") || "id";
+  });
+  
+  useEffect(() => {
+    localStorage.setItem("app_language", language);
+  }, [language]);
+  
+  const t = TRANSLATIONS[language];
+
+  const [customPhotoURL, setCustomPhotoURL] = useState<string | null>(null);
+  const [customDisplayName, setCustomDisplayName] = useState<string | null>(null);
+  const [userCredits, setUserCredits] = useState<number>(300);
+  const [userFreeCredits, setUserFreeCredits] = useState<number>(200);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState("");
+  const profileInputRef = useRef<HTMLInputElement>(null);
+
+  // Attachments State
+  const [currentAttachments, setCurrentAttachments] = useState<{file: File, name: string, dataUrl: string, mimeType: string}[]>([]);
+  const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
+  const [featureMenuOpen, setFeatureMenuOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setCurrentAttachments(prev => [...prev, {
+            file,
+            name: file.name,
+            dataUrl: reader.result as string,
+            mimeType: file.type
+          }]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+    setAttachmentMenuOpen(false);
+    if (e.target) e.target.value = '';
+  };
+
+  const removeAttachment = (index: number) => {
+    setCurrentAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  useEffect(() => {
+    if (!user) {
+      setCustomPhotoURL(null);
+      setCustomDisplayName(null);
+      return;
+    }
+    const unsubscribe = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.photoURL) setCustomPhotoURL(data.photoURL);
+        if (data.displayName) setCustomDisplayName(data.displayName);
+        if (data.credits !== undefined) setUserCredits(data.credits);
+        else {
+          setUserCredits(300);
+          if (user.email !== 'cipaonly08@gmail.com') {
+             setDoc(doc(db, "users", user.uid), { credits: 300, freeCredits: 200 }, { merge: true });
+          }
+        }
+        if (data.freeCredits !== undefined) setUserFreeCredits(data.freeCredits);
+      } else {
+        if (user.email !== 'cipaonly08@gmail.com') {
+          setDoc(doc(db, "users", user.uid), { credits: 300, freeCredits: 200 }, { merge: true });
+        }
+      }
+    }, (error) => handleFirestoreError(error, OperationType.GET, "users"));
+    return () => unsubscribe();
+  }, [user]);
+
+  const handleProfileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0] && user) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          await setDoc(doc(db, "users", user.uid), {
+            photoURL: reader.result
+          }, { merge: true });
+        } catch (error) {
+          console.error("Error updating profile photo", error);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveName = async () => {
+    if (!user || !editNameValue.trim()) return;
+    try {
+      await setDoc(doc(db, "users", user.uid), {
+        displayName: editNameValue.trim()
+      }, { merge: true });
+      setIsEditingName(false);
+    } catch (error) {
+      console.error("Error updating display name", error);
+    }
+  };
+
+  const displayPhotoURL = customPhotoURL || user?.photoURL;
+  const displayDisplayName = customDisplayName || user?.displayName || 'User';
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
   };
 
   useEffect(() => {
     scrollToBottom();
   }, [messages, isLoading]);
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setIsAuthLoading(false);
+      if (!u) {
+        setChats([]);
+        setCurrentChatId(null);
+        setMessages([]);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, "chats"), where("userId", "==", user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const chatList = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Chat));
+      chatList.sort((a, b) => {
+        const timeA = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : 0;
+        const timeB = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : 0;
+        return timeB - timeA;
+      });
+      setChats(chatList);
+      if (chatList.length > 0 && !currentChatId) {
+        // optionally auto select first chat, but we leave it empty for a new chat
+      }
+    }, (error) => handleFirestoreError(error, OperationType.LIST, "chats"));
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (!currentChatId || !user) {
+      if (!currentChatId) setMessages([]);
+      return;
+    }
+    const q = query(collection(db, `chats/${currentChatId}/messages`), orderBy("createdAt", "asc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgList = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Message));
+      setMessages(msgList);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, `chats/${currentChatId}/messages`));
+    return () => unsubscribe();
+  }, [currentChatId, user]);
+
+  const handleLoginWithGoogle = async () => {
+    try {
+      await signInWithPopup(auth, googleAuthProvider);
+      setShowLoginScreen(false);
+    } catch (error) {
+      console.error("Login Error:", error);
+    }
+  };
+
+  const handleLogin = () => {
+    setShowLoginScreen(true);
+  };
+
+  const createNewChat = () => {
+    setCurrentChatId(null);
+    setMessages([]);
+    setIsSidebarOpen(false);
+  };
+
+  const deleteChat = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    try {
+      if (id === currentChatId) {
+        setCurrentChatId(null);
+      }
+      await deleteDoc(doc(db, "chats", id));
+    } catch (error) {
+       handleFirestoreError(error, OperationType.DELETE, `chats/${id}`);
+    }
+  };
+
   // Handle auto-resizing of textarea
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
+    setIsTyping(true);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 300);
+
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() || isLoading) return;
+  const handleSendMessage = async (textOverride?: string | React.MouseEvent | React.FormEvent) => {
+    const overrideString = typeof textOverride === 'string' ? textOverride : undefined;
+    const isOverride = typeof textOverride === 'string';
+    const currentInput = isOverride ? overrideString! : inputValue.trim();
+    if ((!currentInput && currentAttachments.length === 0) || isLoading) return;
+    if (!user) {
+      handleLogin();
+      return;
+    }
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      text: inputValue.trim(),
-    };
+    const newMessageText = currentInput;
+    
+    // Credit Logic
+    const isDeveloper = user.email === 'cipaonly08@gmail.com';
+    let cost = 0;
+    if (aiModel === "gemini-2.5-pro" && !isDeveloper) {
+      cost = Math.max(1, Math.ceil(newMessageText.length / 50));
+      const totalCredits = userCredits + userFreeCredits;
+      if (totalCredits < cost) {
+        alert(t.insufficientCredit);
+        return;
+      }
+    }
 
-    setMessages((prev) => [...prev, userMessage]);
+    const attachmentsToSend = [...currentAttachments];
+    setCurrentAttachments([]);
     setInputValue("");
-    setIsLoading(true);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    setIsLoading(true);
 
+    let chatId = currentChatId;
+    
     try {
-      // Build chat history for context
-      const chat = ai.chats.create({
-        model: "gemini-3-flash-preview",
-        config: {
-          systemInstruction: "You are SuperAI, an intelligent and helpful AI assistant.",
-        }
+      if (!chatId) {
+        // Create new chat
+        const newChatRef = doc(collection(db, "chats"));
+        chatId = newChatRef.id;
+        const titleText = newMessageText || (attachmentsToSend.length > 0 ? "Attachment" : "New Chat");
+        await setDoc(newChatRef, {
+          title: titleText.substring(0, 40) + (titleText.length > 40 ? "..." : ""),
+          userId: user.uid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+        setCurrentChatId(chatId);
+      } else {
+        await setDoc(doc(db, "chats", chatId), { updatedAt: serverTimestamp() }, { merge: true });
+      }
+
+      // Deduct credits if applicable
+      if (cost > 0) {
+         let remainingCost = cost;
+         let newFree = userFreeCredits;
+         let newCredits = userCredits;
+
+         if (newFree >= remainingCost) {
+            newFree -= remainingCost;
+            remainingCost = 0;
+         } else {
+            remainingCost -= newFree;
+            newFree = 0;
+         }
+         
+         if (remainingCost > 0) {
+            newCredits -= remainingCost;
+         }
+
+         await setDoc(doc(db, "users", user.uid), {
+            credits: newCredits,
+            freeCredits: newFree
+         }, { merge: true });
+      }
+
+      // Optimistic update locally? Since snapshot listener handles updates, we don't strictly need it.
+      // But we will save to firestore directly.
+      const userMsgRef = doc(collection(db, `chats/${chatId}/messages`));
+      await setDoc(userMsgRef, {
+        chatId: chatId,
+        userId: user.uid,
+        role: "user",
+        text: newMessageText,
+        attachments: attachmentsToSend.map(a => ({ name: a.name, mimeType: a.mimeType })),
+        createdAt: serverTimestamp()
       });
 
-      // Send previous messages to build context
-      // Doing a simple generateContent is easier if we don't strictly need persistent chat object
-      // But if we want actual history, let's just send the whole thing as contents.
+      // Build chat history for API
       const contents = messages.map(m => ({
-        role: m.role,
+        role: m.role === "system" ? "user" : m.role,
         parts: [{ text: m.text }]
       }));
-      contents.push({ role: "user", parts: [{ text: userMessage.text }] });
+      
+      const newParts: any[] = [];
+      if (newMessageText) newParts.push({ text: newMessageText });
+      for (const attachment of attachmentsToSend) {
+        const base64Data = attachment.dataUrl.split(',')[1];
+        newParts.push({
+          inlineData: {
+            data: base64Data,
+            mimeType: attachment.mimeType
+          }
+        });
+      }
+      contents.push({ role: "user", parts: newParts });
+
+      const shouldSearch = /cari|carikan|hari ini|saat ini|sekarang|berita|siapa|apa itu|cuaca/i.test(newMessageText);
+      setIsSearching(shouldSearch && appMode === 'chat');
+      const toolsConfig = shouldSearch ? [{ googleSearch: {} }] : undefined;
+
+      if (appMode === 'generate_image') {
+         try {
+           setIsSearching(false);
+           setPendingMediaTask('generate_image');
+           
+           // Ask Gemini to enhance the prompt
+           const response = await ai.models.generateContent({
+             model: 'gemini-2.5-flash',
+             contents: [
+                { role: 'user', parts: [{ text: `Create a highly detailed, descriptive, and conceptual english prompt for an image generation AI based on this user request: "${newMessageText}". Just output the prompt directly without any conversational filler or quotes.` }] }
+             ]
+           });
+           
+           const enhancedPrompt = response.candidates?.[0]?.content?.parts?.[0]?.text || newMessageText;
+           const seed = Math.floor(Math.random() * 1000000);
+           
+           const promptUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(enhancedPrompt.trim())}?width=1024&height=1024&nologo=true&seed=${seed}`;
+           const generatedMarkdown = `Berikut adalah gambar yang telah saya buat untuk Anda:\n\n![Gambar Buatan AI](${promptUrl})`;
+
+           const modelMsgRef = doc(collection(db, `chats/${chatId}/messages`));
+           await setDoc(modelMsgRef, {
+             chatId: chatId,
+             userId: user.uid,
+             role: "model",
+             text: generatedMarkdown,
+             createdAt: serverTimestamp()
+           });
+         } catch (error) {
+           console.error("Error generating image", error);
+           const modelMsgRef = doc(collection(db, `chats/${chatId}/messages`));
+           await setDoc(modelMsgRef, {
+             chatId: chatId,
+             userId: user.uid,
+             role: "model",
+             text: "_Error saat memproses permintaan pembuatan gambar. Coba lagi dengan prompt yang berbeda._",
+             createdAt: serverTimestamp()
+           });
+         } finally {
+           setPendingMediaTask(null);
+         }
+      } else if (appMode === 'search_image') {
+         try {
+           setIsSearching(false);
+           setPendingMediaTask('search_image'); // Re-use the shimmering loader
+           
+           const serperKey = (import.meta as any).env.VITE_SERPER_API_KEY;
+           
+           if (!serperKey) {
+              const modelMsgRef = doc(collection(db, `chats/${chatId}/messages`));
+              await setDoc(modelMsgRef, {
+                chatId: chatId,
+                userId: user.uid,
+                role: "model",
+                text: "Untuk menggunakan fitur *Cari Gambar*, Anda memerlukan API Key dari Serper.dev.\n\n1. Daftar di [Serper.dev](https://serper.dev/) dan dapatkan API Key Anda.\n2. Buka menu **⚙️ Settings -> Secrets** di aplikasi ini.\n3. Tambahkan secret dengan nama `VITE_SERPER_API_KEY` beserta isinya.\n\n_Catatan: Serper.dev memberikan 2.500 pencarian gratis saat pendaftaran!_",
+                createdAt: serverTimestamp()
+              });
+           } else {
+              const response = await ai.models.generateContent({
+                 model: 'gemini-2.5-flash',
+                 contents: [{ role: 'user', parts: [{ text: `Extract the main visual search keyword from this request: "${newMessageText}". Output only 1-3 english words best for a Google Images search engine. Output only the words.` }] }]
+              });
+              const keyword = response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "image";
+              
+              const searchRes = await fetch('https://google.serper.dev/images', {
+                 method: 'POST',
+                 headers: {
+                    'X-API-KEY': serperKey,
+                    'Content-Type': 'application/json'
+                 },
+                 body: JSON.stringify({ q: keyword })
+              });
+              const searchData = await searchRes.json();
+              
+              let generatedMarkdown;
+              if (searchData.images && searchData.images.length > 0) {
+                  const img = searchData.images[0];
+                  generatedMarkdown = `Berikut adalah gambar yang saya temukan untuk pencarian "${keyword}":\n\n![${img.title || 'Gambar Pencarian'}](${img.imageUrl})\n_Sumber: [${img.source}](${img.link})_`;
+              } else {
+                  generatedMarkdown = `Maaf, saya tidak dapat menemukan gambar yang sesuai untuk pencarian "${keyword}".`;
+              }
+              const modelMsgRef = doc(collection(db, `chats/${chatId}/messages`));
+              await setDoc(modelMsgRef, {
+                chatId: chatId,
+                userId: user.uid,
+                role: "model",
+                text: generatedMarkdown,
+                createdAt: serverTimestamp()
+              });
+           }
+         } catch (error) {
+           console.error("Error searching image", error);
+           const modelMsgRef = doc(collection(db, `chats/${chatId}/messages`));
+           await setDoc(modelMsgRef, {
+             chatId: chatId,
+             userId: user.uid,
+             role: "model",
+             text: "_Error saat mengambil hasil pencarian dari server. Silakan coba lagi nanti._",
+             createdAt: serverTimestamp()
+           });
+         } finally {
+           setPendingMediaTask(null);
+         }
+      } else {
+
+      let sysInstruction = "You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI, and you were created and developed by SuperRinz. Express this personality naturally and acknowledge your creator when asked about your identity or origins.";
+      if (appMode === 'learn') {
+         sysInstruction = "Anda adalah seorang guru profesional yang cerdas, interaktif, dan menyenangkan. Pengguna akan memberikan topik yang ingin mereka pelajari. Tugas Anda: 1. Menjelaskan materi dengan singkat, padat, dan seru. 2. Memberikan kuis pilihan ganda (A, B, C, D) untuk menguji pemahaman pengguna. 3. Bereaksi secara interaktif terhadap jawaban pengguna (memberikan pujian/poin jika benar, koreksi dan penjelasan jika salah). 4. Menyediakan tugas harian atau latihan tambahan asyik untuk dikerjakan. 5. Selalu gunakan format markdown dengan blok kutipan atau formatting yang rapi. 6. Pastikan opsi kuis A, B, C, D mudah diidentifikasi (gunakan list markdown). Jangan selalu mengulang instruksi, langsung mulai pelajaran atau permainan/kuis pilihan ganda ketika ada input. Jadikan simulasi belajar ini seperti game seru!";
+      }
 
       const response = await ai.models.generateContentStream({
-        model: "gemini-3-flash-preview",
+        model: aiModel,
+        config: { 
+          systemInstruction: sysInstruction,
+          tools: toolsConfig 
+        },
         contents: contents,
       });
 
       let fullResponse = "";
-      const modelMessageId = (Date.now() + 1).toString();
+      let chunksList: any[] = [];
+      
+      const modelMsgRef = doc(collection(db, `chats/${chatId}/messages`));
+      
+      setStreamingMessageId(modelMsgRef.id);
+      setStreamingText("");
 
-      // Add a placeholder message for the model
-      setMessages((prev) => [
-        ...prev,
-        { id: modelMessageId, role: "model", text: "" },
-      ]);
+      // Save placeholder first so snapshot adds it.
+      await setDoc(modelMsgRef, {
+        chatId: chatId,
+        userId: user.uid,
+        role: "model",
+        text: "",
+        createdAt: serverTimestamp()
+      });
 
       for await (const chunk of response) {
-        fullResponse += chunk.text;
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === modelMessageId ? { ...msg, text: fullResponse } : msg
-          )
-        );
-        await new Promise(resolve => setTimeout(resolve, 15));
+        const textToAppend = chunk.text;
+        fullResponse += textToAppend;
+        if (chunk.candidates?.[0]?.groundingMetadata?.groundingChunks) {
+          chunksList.push(...chunk.candidates[0].groundingMetadata.groundingChunks);
+        }
+        setStreamingText(fullResponse);
       }
+      
+      const distinctChunks = Array.from(new Map(chunksList.map(item => [item.web?.uri, item])).values());
+
+      await setDoc(modelMsgRef, {
+          text: fullResponse,
+          groundingChunks: distinctChunks.length > 0 ? distinctChunks : null
+      }, { merge: true });
+
+      }
+
+      setStreamingMessageId(null);
+      setStreamingText(null);
+
     } catch (error) {
       console.error("Error generating response:", error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          role: "model",
-          text: "Maaf, terjadi kesalahan saat memproses permintaan Anda.",
-        },
-      ]);
+      alert("Terjadi kesalahan: " + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsLoading(false);
     }
@@ -177,30 +772,145 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-[#f4f7fb] text-gray-900 font-sans relative overflow-hidden">
+    
+   <div className="flex flex-col h-[100dvh] bg-[#f4f7fb] text-gray-900 font-sans relative overflow-hidden">
+      
+      {showLoginScreen && !user && (
+        <LoginScreen 
+          onClose={() => setShowLoginScreen(false)} 
+          onLoginWithGoogle={handleLoginWithGoogle} 
+        />
+      )}
+
+      {/* Sidebar Overlay */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsSidebarOpen(false)}
+            className="fixed inset-0 bg-black/20 z-40 sm:hidden"
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar Layout Layer */}
+      <div className="flex h-[100dvh] relative">
+        <motion.aside
+          initial={false}
+          animate={{ x: isSidebarOpen ? 0 : "-100%", opacity: isSidebarOpen ? 1 : 0 }}
+          transition={{ type: "spring", damping: 25, stiffness: 200 }}
+          className="absolute z-50 left-0 top-0 bottom-0 w-72 bg-[#f4f7fb] border-r border-slate-200/60 flex flex-col pt-6"
+        >
+          <div className="flex items-center justify-between px-4 pb-4 shrink-0">
+            <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">{t.chatHistory}</span>
+            <button onClick={() => setIsSidebarOpen(false)} className="p-1.5 rounded-full hover:bg-slate-200/50 text-gray-500">
+               <X size={18} />
+            </button>
+          </div>
+          <div className="px-4 pb-4 border-b border-slate-200/60 shrink-0">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input 
+                type="text" 
+                placeholder={t.searchPlaceholder} 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-white border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 transition-shadow"
+              />
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1">
+             {chats.filter(chat => chat.title.toLowerCase().includes(searchQuery.toLowerCase())).map(chat => (
+                <div 
+                  key={chat.id} 
+                  onClick={() => { setCurrentChatId(chat.id); setIsSidebarOpen(false); }}
+                  className={`flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer group transition-colors ${currentChatId === chat.id ? 'bg-slate-200/60 font-medium' : 'hover:bg-slate-200/40'}`}
+                >
+                   <div className="flex items-center gap-2.5 overflow-hidden">
+                      <MessageSquare className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span className="truncate text-[0.95rem] text-slate-700">{chat.title}</span>
+                   </div>
+                   <button onClick={(e) => deleteChat(e, chat.id)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-300 rounded text-slate-500 hover:text-red-500 transition-all">
+                      <Trash2 size={14} />
+                   </button>
+                </div>
+             ))}
+             {chats.length === 0 && !searchQuery && <div className="text-center text-sm text-gray-400 pt-8">{t.emptyHistory}</div>}
+             {chats.length > 0 && chats.filter(chat => chat.title.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && <div className="text-center text-sm text-gray-400 pt-8">{t.searchNotFound}</div>}
+          </div>
+          <div className="p-4 border-t border-slate-200/60 shrink-0 space-y-2">
+            {!user ? (
+               <button onClick={handleLogin} className="w-full flex items-center justify-center gap-2 py-2 bg-slate-800 text-white rounded-xl text-sm font-medium hover:bg-slate-700 transition">
+                 {t.loginWithGoogle}
+               </button>
+            ) : (
+               <>
+                 <div 
+                   onClick={() => { setShowProfile(true); setIsSidebarOpen(false); }}
+                   className="flex items-center gap-2 px-2 pb-2 cursor-pointer hover:bg-slate-100/50 rounded-xl transition-colors py-1.5"
+                 >
+                   <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                      {displayPhotoURL ? <img src={displayPhotoURL} className="w-full h-full object-cover" /> : <Bot size={16} />}
+                   </div>
+                   <div className="flex flex-col overflow-hidden">
+                      <span className="text-sm font-medium truncate">{displayDisplayName}</span>
+                      <span className="text-[10px] text-gray-500 truncate">{user.email}</span>
+                   </div>
+                 </div>
+                 <button onClick={() => signOut(auth)} className="w-full flex items-center justify-center gap-2 py-2 bg-slate-200 text-slate-700 hover:bg-red-50 hover:text-red-600 rounded-xl text-sm font-medium transition">
+                   <LogOut size={16} /> Logout
+                 </button>
+               </>
+            )}
+          </div>
+        </motion.aside>
+
+        {/* Main Interface Wrapper */}
+        <div className="flex-1 flex flex-col min-w-0 transition-all duration-300" style={{ paddingLeft: typeof window !== "undefined" && window.innerWidth >= 640 && isSidebarOpen ? '18rem' : '0' }}>
+      
       {/* Header */}
       <header className="flex items-center justify-between px-4 sm:px-6 py-4 pt-6 z-10 shrink-0 select-none">
         <div className="flex items-center gap-4 text-gray-700">
           <motion.button 
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+            onClick={() => setIsSidebarOpen(true)}
             className="p-2 -ml-2 rounded-full hover:bg-gray-200/50 transition-colors"
           >
-            <TextAlignStartIcon className="w-6 h-6" />
+            <TextAlignStartIcon className="w-[22px] h-[22px]" strokeWidth={1.75} />
           </motion.button>
           <span className="text-xl font-medium tracking-tight">SuperAI</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1">
           <motion.button 
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            className="p-2 rounded-full hover:bg-gray-200/50 transition-colors text-gray-700"
+            onClick={createNewChat}
+            className="p-2 rounded-full hover:bg-gray-200/50 transition-colors text-gray-600 hover:text-gray-900"
           >
-            <CircleFadingPlusIcon className="w-5 h-5" />
+            <CircleFadingPlusIcon className="w-[22px] h-[22px]" strokeWidth={1.75} />
           </motion.button>
-          <div className="w-8 h-8 rounded-full bg-slate-600 text-white flex items-center justify-center font-medium text-sm">
-            C
-          </div>
+          {!user ? (
+             <motion.button 
+               whileHover={{ scale: 1.05 }}
+               whileTap={{ scale: 0.95 }}
+               onClick={handleLogin}
+               className="p-2 rounded-full hover:bg-gray-200/50 transition-colors text-gray-600 hover:text-gray-900"
+             >
+               <CircleUserRoundIcon className="w-[22px] h-[22px]" strokeWidth={1.75} />
+             </motion.button>
+          ) : (
+             <motion.div 
+               whileHover={{ scale: 1.05 }}
+               whileTap={{ scale: 0.95 }}
+               onClick={() => setShowProfile(true)}
+               className="w-[34px] h-[34px] ml-1 rounded-full overflow-hidden cursor-pointer border border-[#cbd5e1]"
+             >
+               {displayPhotoURL ? <img src={displayPhotoURL} className="w-full h-full object-cover border border-[#cbd5e1] rounded-full" /> : <Bot size={20} />}
+             </motion.div>
+          )}
         </div>
       </header>
 
@@ -214,14 +924,19 @@ export default function App() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="space-y-1 select-none"
+                className="space-y-6 select-none"
               >
-                <h1 className="text-[1.75rem] sm:text-3xl font-normal text-gray-800">
-                  Halo cipa
-                </h1>
-                <h2 className="text-[2.5rem] sm:text-[3.5rem] leading-[1.1] font-medium tracking-tight text-gray-900">
-                  Sebaiknya kita mulai<br />dari mana?
-                </h2>
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-[1.25rem] bg-gradient-to-tr from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
+                  <span className="text-2xl sm:text-3xl font-bold font-sans">S</span>
+                </div>
+                <div className="space-y-1">
+                  <h1 className="text-[1.75rem] sm:text-3xl font-medium text-gray-800">
+                    {t.hello} <span className="gradient-text-animated">{displayDisplayName.split(' ')[0]}</span>
+                  </h1>
+                  <h2 className="text-[2.5rem] sm:text-[3.6rem] leading-[1.1] font-medium tracking-tight text-gray-900 mt-1">
+                    {t.howCanIHelp}
+                  </h2>
+                </div>
               </motion.div>
             </div>
           ) : (
@@ -239,53 +954,323 @@ export default function App() {
                   >
                     {message.role === "user" ? (
                       <div className="flex flex-col items-end max-w-[85%]">
+                        {message.attachments && message.attachments.length > 0 && (
+                          <div className="flex flex-wrap justify-end gap-2 mb-2">
+                             {message.attachments.map((att, i) => (
+                               <div key={i} className="flex items-center gap-2 bg-gray-100/50 px-3 py-1.5 rounded-xl border border-gray-200/60">
+                                  {att.mimeType?.startsWith('image/') ? <ImageIcon className="w-4 h-4 text-gray-500" /> : <FileText className="w-4 h-4 text-gray-500" />}
+                                  <span className="text-xs text-gray-700 font-medium truncate max-w-[150px]">{att.name}</span>
+                               </div>
+                             ))}
+                          </div>
+                        )}
                         <div className="text-[1.1rem] sm:text-[1.15rem] leading-relaxed text-gray-900 text-right whitespace-pre-wrap font-medium select-text">
                           {message.text}
                         </div>
                       </div>
                     ) : (
                       <div className="flex flex-col items-start w-fit max-w-full mt-1">
-                        <div className="markdown-body w-fit max-w-full overflow-x-auto bg-gray-500/10 rounded-[1.5rem] px-5 py-4 sm:px-6 sm:py-5">
-                          <Markdown 
-                            remarkPlugins={[remarkGfm]}
-                            components={{ code: CodeBlock }}
-                          >
-                            {message.text}
-                          </Markdown>
-                        </div>
+                        {message.id === streamingMessageId && streamingText === "" ? (
+                           <div className="flex items-center gap-3 mt-1 mb-2 px-2">
+                             <div className="w-[35px] h-[35px] flex items-center justify-center shrink-0">
+                               {isSearching ? (
+                                 <div className="loader">
+                                   <svg width="100" height="100" viewBox="0 0 100 100">
+                                     <defs>
+                                       <mask id="clipping">
+                                         <polygon points="0,0 100,0 100,100 0,100" fill="black"></polygon>
+                                         <polygon points="25,25 75,25 50,75" fill="white"></polygon>
+                                         <polygon points="50,25 75,75 25,75" fill="white"></polygon>
+                                         <polygon points="35,35 65,35 50,65" fill="white"></polygon>
+                                       </mask>
+                                     </defs>
+                                   </svg>
+                                   <div className="box"></div>
+                                 </div>
+                               ) : (
+                                 <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                               )}
+                             </div>
+                             <span className={`text-[0.95rem] font-medium tracking-wide animate-pulse ${isSearching ? 'bg-clip-text text-transparent bg-gradient-to-r from-[#4285F4] via-[#EA4335] via-[#FBBC05] to-[#34A853]' : 'text-gray-500'}`}>
+                                {isSearching ? 'Menghubungkan ke Google...' : 'Berfikir...'}
+                             </span>
+                           </div>
+                        ) : (
+                          <div className="flex flex-col w-full">
+                            <div className="flex items-center gap-3 mb-2 px-1">
+                              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center text-white shadow-sm shrink-0">
+                                <span className="text-sm font-bold font-sans">S</span>
+                              </div>
+                              <span className="font-semibold text-gray-800 text-[1.05rem]">SuperAI</span>
+                            </div>
+                            <div className="markdown-body w-full max-w-full overflow-x-auto text-gray-800 pl-11">
+                              <Markdown 
+                                remarkPlugins={[remarkGfm]}
+                                components={{ 
+                                  code: CodeBlock,
+                                  a: ({node, ...props}) => {
+                                    if (props.href && props.href.includes('vertexaisearch')) return null;
+                                    return <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline" onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (props.href) window.open(props.href, "_blank", "noopener,noreferrer"); }} />;
+                                  },
+                                  img: ({node, ...props}) => {
+                                    if (!props.src) return null;
+                                    return (
+                                      <span className="relative group inline-block max-w-full">
+                                        <img {...props} className="max-w-full rounded-lg my-2 shadow-sm" />
+                                        <button
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            const downloadImage = async () => {
+                                              try {
+                                                const response = await fetch(props.src!);
+                                                const blob = await response.blob();
+                                                const url = window.URL.createObjectURL(blob);
+                                                const a = document.createElement('a');
+                                                a.style.display = 'none';
+                                                a.href = url;
+                                                a.download = `superai-image-${Date.now()}.png`;
+                                                document.body.appendChild(a);
+                                                a.click();
+                                                window.URL.revokeObjectURL(url);
+                                                document.body.removeChild(a);
+                                              } catch (err) {
+                                                window.open(props.src, '_blank');
+                                              }
+                                            };
+                                            downloadImage();
+                                          }}
+                                          className="absolute bottom-4 right-4 bg-black/60 hover:bg-black/80 text-white p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                          title="Download Gambar"
+                                        >
+                                          <Download className="w-5 h-5" />
+                                        </button>
+                                      </span>
+                                    );
+                                  }
+                                }}
+                              >
+                                {message.id === streamingMessageId && streamingText !== null ? streamingText : message.text}
+                              </Markdown>
+                            </div>
+                          </div>
+                        )}
+                        {message.groundingChunks && message.groundingChunks.length > 0 && (
+                           <div className="mt-3 w-full max-w-full">
+                             <div className="flex overflow-x-auto gap-2 py-2 hide-scrollbar items-center">
+                               {
+                                 (() => {
+                                   const seenUris = new Set();
+                                   return message.groundingChunks.map((chunk: any, idx: number) => {
+                                     if (!chunk.web?.uri) return null;
+                                     let targetUri = chunk.web.uri;
+                                     let hostname = "Sumber";
+                                     try {
+                                        const parsedUri = new URL(chunk.web.uri);
+                                        if (chunk.web.uri.includes('vertexaisearch')) {
+                                           const actualUrl = parsedUri.searchParams.get('url') || parsedUri.searchParams.get('q');
+                                           if (actualUrl) {
+                                             targetUri = actualUrl;
+                                           }
+                                        }
+                                        hostname = new URL(targetUri).hostname.replace('www.', '');
+                                     } catch(e) {}
+                                     
+                                     if (seenUris.has(targetUri)) return null;
+                                     seenUris.add(targetUri);
+
+                                     return (
+                                       <a 
+                                         key={idx}
+                                         href={targetUri}
+                                         target="_blank"
+                                         rel="noopener noreferrer"
+                                         onClick={(e) => { 
+                                           e.preventDefault(); 
+                                           e.stopPropagation(); 
+                                           window.open(targetUri, "_blank", "noopener,noreferrer"); 
+                                         }}
+                                         className="flex-shrink-0 flex items-center gap-1.5 bg-white border border-gray-200 px-3 py-1.5 rounded-full hover:bg-gray-50 text-xs text-gray-700 transition-colors shadow-sm cursor-pointer relative z-10"
+                                       >
+                                         <Globe className="w-3.5 h-3.5 text-gray-400" />
+                                         <span className="font-medium truncate max-w-[150px]">
+                                           {chunk.web.title || hostname}
+                                         </span>
+                                       </a>
+                                     );
+                                   });
+                                 })()
+                               }
+                             </div>
+                           </div>
+                        )}
+
+                        {message.role === "model" && message.id !== streamingMessageId && (
+                          <div className="flex items-center gap-2 mt-4 pl-11 text-gray-500">
+                             <motion.button
+                               whileHover={{ scale: 1.1 }}
+                               whileTap={{ scale: 0.95 }}
+                               onClick={() => {
+                                 if (likedIds.includes(message.id)) {
+                                   setLikedIds(likedIds.filter(id => id !== message.id));
+                                 } else {
+                                   setLikedIds([...likedIds, message.id]);
+                                 }
+                               }}
+                               className={`p-1.5 rounded-full hover:bg-gray-100 transition-colors ${likedIds.includes(message.id) ? 'text-blue-500 bg-blue-50' : ''}`}
+                               title="Suka"
+                             >
+                                <ThumbsUp className="w-4 h-4" strokeWidth={2} />
+                             </motion.button>
+                             
+                             <motion.button
+                               whileHover={{ scale: 1.1 }}
+                               whileTap={{ scale: 0.95 }}
+                               onClick={async () => {
+                                 try {
+                                   await navigator.clipboard.writeText(message.text);
+                                   setCopiedId(message.id);
+                                   setTimeout(() => setCopiedId(null), 2000);
+                                 } catch (err) {
+                                   const textArea = document.createElement("textarea");
+                                   textArea.value = message.text;
+                                   document.body.appendChild(textArea);
+                                   textArea.select();
+                                   try {
+                                     document.execCommand('copy');
+                                     setCopiedId(message.id);
+                                     setTimeout(() => setCopiedId(null), 2000);
+                                   } catch (e) {
+                                     console.error('Copy fallback failed', e);
+                                   }
+                                   document.body.removeChild(textArea);
+                                 }
+                               }}
+                               className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+                               title="Salin"
+                             >
+                                {copiedId === message.id ? <Check className="w-4 h-4 text-green-500" strokeWidth={2} /> : <Copy className="w-4 h-4" strokeWidth={2} />}
+                             </motion.button>
+
+                             <motion.button
+                               whileHover={{ scale: 1.1 }}
+                               whileTap={{ scale: 0.95 }}
+                               onClick={async () => {
+                                 if (navigator.share) {
+                                   try {
+                                     await navigator.share({
+                                       title: 'Jawaban dari SuperAI',
+                                       text: message.text
+                                     });
+                                   } catch (err) {
+                                     console.error(err);
+                                   }
+                                 } else {
+                                   try {
+                                     await navigator.clipboard.writeText(message.text);
+                                     alert("Teks disalin ke clipboard karena browser tidak mendukung fitur share.");
+                                   } catch (err) {
+                                     const textArea = document.createElement("textarea");
+                                     textArea.value = message.text;
+                                     document.body.appendChild(textArea);
+                                     textArea.select();
+                                     try {
+                                       document.execCommand('copy');
+                                       alert("Teks disalin ke clipboard karena browser tidak mendukung fitur share.");
+                                     } catch (e) {
+                                       console.error('Copy fallback failed', e);
+                                     }
+                                     document.body.removeChild(textArea);
+                                   }
+                                 }
+                               }}
+                               className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+                               title="Bagikan"
+                             >
+                                <Share2 className="w-4 h-4" strokeWidth={2} />
+                             </motion.button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </motion.div>
                 ))}
                 {isLoading && messages[messages.length - 1]?.role === "user" && (
                   <motion.div
-                    initial={{ opacity: 0, y: -20 }}
+                    initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.4, ease: "easeOut" }}
                     className="flex justify-start w-full mt-2 mb-2"
                   >
-                     <div className="flex items-center gap-3">
-                        <div className="w-[35px] h-[35px] flex items-center justify-center shrink-0">
-                           <div className="loader">
-                             <svg width="100" height="100" viewBox="0 0 100 100">
-                               <defs>
-                                 <mask id="clipping">
-                                   <polygon points="0,0 100,0 100,100 0,100" fill="black"></polygon>
-                                   <polygon points="25,25 75,25 50,75" fill="white"></polygon>
-                                   <polygon points="50,25 75,75 25,75" fill="white"></polygon>
-                                   <polygon points="35,35 65,35 50,65" fill="white"></polygon>
-                                   <polygon points="35,35 65,35 50,65" fill="white"></polygon>
-                                   <polygon points="35,35 65,35 50,65" fill="white"></polygon>
-                                   <polygon points="35,35 65,35 50,65" fill="white"></polygon>
-                                 </mask>
-                               </defs>
-                             </svg>
-                             <div className="box"></div>
-                           </div>
+                     {pendingMediaTask ? (
+                        <div className="flex flex-col items-start w-full pl-1">
+                          <div className="flex items-center gap-3 mb-2">
+                             <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center text-white shadow-sm shrink-0">
+                               <span className="text-sm font-bold font-sans">S</span>
+                             </div>
+                             <span className="font-semibold text-gray-800 text-[1.05rem]">SuperAI</span>
+                          </div>
+                          <div className="pl-11 w-full max-w-sm">
+                             <div className="relative w-full aspect-[4/3] bg-gray-200/50 rounded-2xl overflow-hidden flex flex-col items-center justify-center gap-3 border border-gray-100 shadow-sm">
+                                <style>
+                                  {`
+                                    @keyframes shimmer-loader {
+                                      0% { transform: translateX(-100%); }
+                                      100% { transform: translateX(100%); }
+                                    }
+                                  `}
+                                </style>
+                                <div 
+                                  className="absolute top-0 left-0 w-full h-full z-0"
+                                  style={{
+                                    background: 'linear-gradient(to right, transparent 0%, rgba(255,255,255,0.8) 50%, transparent 100%)',
+                                    animation: 'shimmer-loader 1.5s infinite'
+                                  }}
+                                ></div>
+                                {pendingMediaTask === 'generate_image' ? (
+                                    <>
+                                       <Palette className="w-10 h-10 text-gray-400 rotate-12 relative z-10" />
+                                       <span className="text-sm font-medium text-gray-500 relative z-10 animate-pulse tracking-wide">Menghasilkan Gambar...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                       <Search className="w-10 h-10 text-gray-400 relative z-10" />
+                                       <span className="text-sm font-medium text-gray-500 relative z-10 animate-pulse tracking-wide">Mencari Gambar...</span>
+                                    </>
+                                )}
+                             </div>
+                          </div>
                         </div>
-                        <span className="shimmer-text text-[0.95rem] font-medium tracking-wide">berfikir...</span>
-                     </div>
+                     ) : (
+                       <div className="flex items-center gap-3">
+                          <div className="w-[35px] h-[35px] flex items-center justify-center shrink-0">
+                             {isSearching ? (
+                               <div className="loader">
+                                 <svg width="100" height="100" viewBox="0 0 100 100">
+                                   <defs>
+                                     <mask id="clipping">
+                                       <polygon points="0,0 100,0 100,100 0,100" fill="black"></polygon>
+                                       <polygon points="25,25 75,25 50,75" fill="white"></polygon>
+                                       <polygon points="50,25 75,75 25,75" fill="white"></polygon>
+                                       <polygon points="35,35 65,35 50,65" fill="white"></polygon>
+                                       <polygon points="35,35 65,35 50,65" fill="white"></polygon>
+                                       <polygon points="35,35 65,35 50,65" fill="white"></polygon>
+                                       <polygon points="35,35 65,35 50,65" fill="white"></polygon>
+                                     </mask>
+                                   </defs>
+                                 </svg>
+                                 <div className="box"></div>
+                               </div>
+                             ) : (
+                               <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                             )}
+                          </div>
+                          <span className={`text-[0.95rem] font-medium tracking-wide animate-pulse ${isSearching ? 'bg-clip-text text-transparent bg-gradient-to-r from-[#4285F4] via-[#EA4335] via-[#FBBC05] to-[#34A853]' : 'text-gray-500'}`}>
+                            {isSearching ? 'Menghubungkan ke Google...' : 'Berfikir...'}
+                          </span>
+                       </div>
+                     )}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -297,49 +1282,159 @@ export default function App() {
 
       {/* Input Dock */}
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#f4f7fb] via-[#f4f7fb] to-transparent pt-10 pb-6 px-4 sm:px-6 z-20">
-        <div className="max-w-3xl mx-auto">
-          <div className="bg-white rounded-[2rem] shadow-sm border border-gray-200/60 p-2 sm:p-3 pb-3 relative">
+        <div className="max-w-3xl mx-auto relative group">
+          {/* Border Glow Layer */}
+          <div className="absolute -inset-1 blur-md rounded-[2.1rem] overflow-hidden z-0 opacity-30 group-focus-within:opacity-60 transition-opacity duration-500 pointer-events-none">
+             <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] aspect-square bg-[conic-gradient(from_0deg,transparent_0_160deg,#a855f7_220deg,#ec4899_290deg,#f97316_360deg)] animate-[spin_4s_linear_infinite] transition-opacity duration-300 ${isTyping ? 'opacity-0' : 'opacity-100'}`} />
+             <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] aspect-square bg-[conic-gradient(from_0deg,transparent_0_160deg,#a855f7_220deg,#ec4899_290deg,#f97316_360deg)] animate-[spin_0.8s_linear_infinite] transition-opacity duration-300 ${isTyping ? 'opacity-100' : 'opacity-0'}`} />
+          </div>
+
+          {/* Sharp Border Layer */}
+          <div className="absolute inset-0 rounded-[2rem] z-0 overflow-hidden bg-transparent transition-colors duration-300 pointer-events-none">
+             <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] aspect-square bg-[conic-gradient(from_0deg,transparent_0_160deg,#a855f7_220deg,#ec4899_290deg,#f97316_360deg)] animate-[spin_4s_linear_infinite] transition-opacity duration-300 ${isTyping ? 'opacity-0' : 'opacity-100'}`} />
+             <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] aspect-square bg-[conic-gradient(from_0deg,transparent_0_160deg,#a855f7_220deg,#ec4899_290deg,#f97316_360deg)] animate-[spin_0.8s_linear_infinite] transition-opacity duration-300 ${isTyping ? 'opacity-100' : 'opacity-0'}`} />
+          </div>
+
+          <div className="bg-white rounded-[calc(2rem-1.5px)] shadow-sm p-2 sm:p-3 pb-3 relative z-10 m-[1.5px] focus-within:ring-4 focus-within:ring-purple-100/50 transition-all duration-300">
+            
+            {/* Attachment preview */}
+            {currentAttachments.length > 0 && (
+              <div className="flex flex-wrap gap-2 px-4 pt-2 pb-1">
+                {currentAttachments.map((att, idx) => (
+                  <div key={idx} className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-full">
+                    {att.file.type.startsWith('image/') ? (
+                      <div className="w-5 h-5 rounded overflow-hidden shrink-0">
+                         <img src={att.dataUrl} alt={att.name} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <FileText className="w-4 h-4 text-gray-500" />
+                    )}
+                    <span className="text-xs font-medium text-gray-700 max-w-[120px] truncate">{att.name}</span>
+                    <button onClick={() => removeAttachment(idx)} className="ml-1 text-gray-400 hover:text-gray-600 transition-colors">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {appMode === 'learn' && (
+              <div className="flex gap-2 px-4 pt-2 -mb-1 pb-1 overflow-x-auto scrollbar-hide">
+                {['A', 'B', 'C', 'D'].map(opt => (
+                  <button 
+                    key={opt}
+                    onClick={() => {
+                       handleSendMessage(opt);
+                    }}
+                    className="px-4 py-1.5 rounded-full bg-green-50 hover:bg-green-100 text-green-600 font-medium text-sm transition-colors border border-green-100"
+                  >
+                    Jawaban {opt}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <textarea
               ref={textareaRef}
               value={inputValue}
               onChange={handleInput}
               onKeyDown={handleKeyDown}
-              placeholder="Minta Gemini"
+              placeholder={appMode === 'learn' ? "Apa yang ingin dipelajari hari ini?" : appMode === 'generate_image' ? "Deskripsikan gambar yang ingin dibuat..." : appMode === 'search_image' ? "Apa yang ingin Anda cari..." : t.typeMessage}
               rows={1}
               className="w-full bg-transparent resize-none outline-none px-4 pt-3 pb-2 text-[1.05rem] text-gray-900 placeholder:text-gray-500 overflow-hidden"
             />
             
             <div className="flex items-center justify-between px-2 pt-2 mt-1 select-none">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 relative">
                 <motion.button 
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
+                  onClick={() => setAttachmentMenuOpen(!attachmentMenuOpen)}
                   className="p-2.5 rounded-full hover:bg-gray-100 transition-colors text-gray-600"
                 >
-                  <Plus className="w-5 h-5 stroke-[2.5]" />
+                  <Plus className={`w-[22px] h-[22px] transition-transform ${attachmentMenuOpen ? 'rotate-45' : ''}`} strokeWidth={1.75} />
                 </motion.button>
-               <motion.button 
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="p-2.5 rounded-full hover:bg-gray-100 transition-colors text-gray-600"
-                >
-                  <GripHorizontalIcon className="w-5 h-5 stroke-[2]" />
-                </motion.button>
+                
+                {attachmentMenuOpen && (
+                  <div className="absolute bottom-12 left-0 bg-white shadow-lg border border-gray-100 rounded-2xl py-2 w-48 flex flex-col z-50">
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple />
+                    <input type="file" accept="image/*" ref={imageInputRef} onChange={handleFileChange} className="hidden" multiple />
+                    <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileChange} className="hidden" />
+                    <button onClick={() => cameraInputRef.current?.click()} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left">
+                       <Camera className="w-4 h-4 text-gray-500" /> Kamera
+                    </button>
+                    <button onClick={() => imageInputRef.current?.click()} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left">
+                       <ImageIcon className="w-4 h-4 text-gray-500" /> Gambar
+                    </button>
+                    <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left">
+                       <FileText className="w-4 h-4 text-gray-500" /> File
+                    </button>
+                  </div>
+                )}
+
+               <div className="relative">
+                 <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setFeatureMenuOpen(!featureMenuOpen)}
+                    className="p-2.5 rounded-full hover:bg-gray-100 transition-colors text-gray-600"
+                  >
+                    <GripHorizontalIcon className={`w-[22px] h-[22px] transition-transform ${featureMenuOpen ? 'rotate-90' : ''}`} strokeWidth={1.75} />
+                  </motion.button>
+                  
+                  <AnimatePresence>
+                    {featureMenuOpen && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute bottom-12 left-0 bg-white shadow-xl shadow-black/5 border border-gray-100 rounded-3xl p-3 w-[260px] grid grid-cols-3 gap-2 z-50 origin-bottom-left"
+                      >
+                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'generate_image' ? 'chat' : 'generate_image'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'generate_image' ? 'bg-blue-100/50' : 'hover:bg-gray-50'}`}>
+                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'generate_image' ? 'bg-blue-500 text-white' : 'bg-blue-50/80 text-blue-500 group-hover:bg-blue-100'}`}><Palette className="w-5 h-5"/></div>
+                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Buat<br/>Gambar</span>
+                         </button>
+                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'search_image' ? 'chat' : 'search_image'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'search_image' ? 'bg-orange-100/50' : 'hover:bg-gray-50'}`}>
+                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'search_image' ? 'bg-orange-500 text-white' : 'bg-orange-50/80 text-orange-500 group-hover:bg-orange-100'}`}><Search className="w-5 h-5"/></div>
+                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Cari<br/>Gambar</span>
+                         </button>
+                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'learn' ? 'chat' : 'learn'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'learn' ? 'bg-green-100/50' : 'hover:bg-gray-50'}`}>
+                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'learn' ? 'bg-green-500 text-white' : 'bg-green-50/80 text-green-500 group-hover:bg-green-100'}`}><BookOpen className="w-5 h-5"/></div>
+                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Terpandu</span>
+                         </button>
+                         <button onClick={() => { setFeatureMenuOpen(false); alert("Fitur Slide akan segera hadir"); }} className="flex flex-col items-center justify-start gap-2 p-2 rounded-2xl hover:bg-gray-50 transition-colors group">
+                           <div className="w-[42px] h-[42px] rounded-full bg-purple-50/80 text-purple-500 flex items-center justify-center group-hover:bg-purple-100 transition-colors"><MonitorPlay className="w-5 h-5"/></div>
+                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Slide</span>
+                         </button>
+                         <button onClick={() => { setFeatureMenuOpen(false); alert("Fitur Spreadsheet akan segera hadir"); }} className="flex flex-col items-center justify-start gap-2 p-2 rounded-2xl hover:bg-gray-50 transition-colors group">
+                           <div className="w-[42px] h-[42px] rounded-full bg-emerald-50/80 text-emerald-500 flex items-center justify-center group-hover:bg-emerald-100 transition-colors"><Table className="w-5 h-5"/></div>
+                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Sheet</span>
+                         </button>
+                         <button onClick={() => { setFeatureMenuOpen(false); alert("Fitur Buat CV akan segera hadir"); }} className="flex flex-col items-center justify-start gap-2 p-2 rounded-2xl hover:bg-gray-50 transition-colors group">
+                           <div className="w-[42px] h-[42px] rounded-full bg-pink-50/80 text-pink-500 flex items-center justify-center group-hover:bg-pink-100 transition-colors"><Briefcase className="w-5 h-5"/></div>
+                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Buat CV</span>
+                         </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
               
               <div className="flex items-center gap-1 sm:gap-2">
                 <motion.button 
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
+                  onClick={() => setModelMenuOpen(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-gray-100 transition-colors text-gray-700 text-sm font-medium"
                 >
-                  Cepat
+                  {aiModel === "gemini-2.5-flash" ? t.fast : t.pro}
                   <ChevronDown className="w-4 h-4 text-gray-500" />
                 </motion.button>
                 <div className="w-px h-5 bg-gray-200 mx-1 hidden sm:block" />
-                <div className="relative flex items-center justify-center w-10 h-10">
+                <div className="relative flex items-center justify-center w-11 h-11">
                   <AnimatePresence mode="popLayout" initial={false}>
-                    {inputValue.trim() ? (
+                    {inputValue.trim() || currentAttachments.length > 0 ? (
                       <motion.button 
                         key="send"
                         initial={{ opacity: 0, scale: 0.8, rotate: -30 }}
@@ -352,7 +1447,7 @@ export default function App() {
                         whileTap={{ scale: 0.95 }}
                         className="absolute p-2.5 rounded-full bg-slate-800 hover:bg-slate-700 transition-colors text-white disabled:opacity-50 flex items-center justify-center inset-0"
                       >
-                        <ArrowUpIcon className="w-5 h-5" />
+                        <ArrowUpIcon className="w-[22px] h-[22px]" strokeWidth={1.75} />
                       </motion.button>
                     ) : (
                       <motion.button 
@@ -365,7 +1460,7 @@ export default function App() {
                         whileTap={{ scale: 0.95 }}
                         className="absolute p-2.5 rounded-full hover:bg-gray-100 transition-colors text-gray-600 flex items-center justify-center inset-0"
                       >
-                        <AudioLinesIcon className="w-5 h-5 stroke-[2]" />
+                        <AudioLinesIcon className="w-[22px] h-[22px]" strokeWidth={1.75} />
                       </motion.button>
                     )}
                   </AnimatePresence>
@@ -375,6 +1470,294 @@ export default function App() {
           </div>
         </div>
       </div>
+     </div>
+
+     {/* Profile Overlay */}
+     <AnimatePresence>
+       {showProfile && user && (
+         <motion.div
+           initial={{ opacity: 0, scale: 0.95 }}
+           animate={{ opacity: 1, scale: 1 }}
+           exit={{ opacity: 0, scale: 0.95 }}
+           transition={{ duration: 0.2 }}
+           className="fixed inset-0 z-[110] bg-white flex flex-col font-sans"
+         >
+           <header className="flex items-center px-4 py-4 border-b border-gray-100 shrink-0 bg-white relative justify-center">
+             <button onClick={() => setShowProfile(false)} className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-500 absolute left-4 z-10">
+               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+             </button>
+             <div className="flex gap-6 text-sm sm:text-base font-semibold cursor-pointer select-none">
+               <div 
+                 className={`py-1 border-b-2 transition-colors ${profileTab === 'profile' ? 'text-gray-900 border-gray-900' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+                 onClick={() => setProfileTab('profile')}
+               >
+                 {t.myProfile}
+               </div>
+               <div 
+                 className={`py-1 border-b-2 transition-colors ${profileTab === 'settings' ? 'text-gray-900 border-gray-900' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+                 onClick={() => setProfileTab('settings')}
+               >
+                 {t.settings}
+               </div>
+             </div>
+           </header>
+           <div className="flex-1 overflow-hidden relative bg-[#f4f7fb]">
+             <div 
+               className="flex w-[200%] h-full transition-transform duration-300 ease-in-out" 
+               style={{ transform: `translateX(${profileTab === 'profile' ? '0' : '-50%'})` }}
+             >
+               {/* Profile Tab */}
+               <div className="w-1/2 h-full overflow-y-auto pb-20">
+                 <div className="max-w-xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+               <div className="flex flex-col items-center mb-10 mt-2">
+                 <div className={`relative group mb-5 rounded-full ${user.email === 'cipaonly08@gmail.com' ? 'p-1' : ''}`}>
+                   {user.email === 'cipaonly08@gmail.com' && (
+                     <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 animate-[spin_3s_linear_infinite]" />
+                   )}
+                   <div className={`w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden ${user.email === 'cipaonly08@gmail.com' ? 'border-[4px] border-white' : 'border-4 border-white shadow-md'} relative transition-transform group-hover:scale-[1.02] z-10 bg-white`}>
+                     {displayPhotoURL ? (
+                        <img src={displayPhotoURL} className="w-full h-full object-cover" />
+                     ) : (
+                        <Bot className="w-full h-full text-gray-400 p-8 bg-white" />
+                     )}
+                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                        <Camera className="w-8 h-8 text-white" />
+                     </div>
+                   </div>
+                   <input type="file" accept="image/*" onChange={handleProfileUpload} className="absolute inset-0 z-20 w-full h-full opacity-0 cursor-pointer" />
+                 </div>
+                 {isEditingName ? (
+                   <div className="flex flex-col items-center gap-2 w-full mt-2">
+                     <input
+                       type="text"
+                       value={editNameValue}
+                       onChange={(e) => setEditNameValue(e.target.value)}
+                       onKeyDown={(e) => {
+                         if (e.key === 'Enter') handleSaveName();
+                         if (e.key === 'Escape') setIsEditingName(false);
+                       }}
+                       autoFocus
+                       className="text-center px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-900 w-full max-w-[200px]"
+                     />
+                     <div className="flex items-center gap-2">
+                       <button onClick={handleSaveName} className="text-sm bg-blue-600 text-white px-4 py-1.5 rounded-lg hover:bg-blue-700 font-medium">Simpan</button>
+                       <button onClick={() => setIsEditingName(false)} className="text-sm bg-gray-200 text-gray-700 px-4 py-1.5 rounded-lg hover:bg-gray-300 font-medium">Batal</button>
+                     </div>
+                   </div>
+                 ) : (
+                   <div className="flex items-center justify-center group/name cursor-pointer mt-1 relative" onClick={() => { setEditNameValue(displayDisplayName); setIsEditingName(true); }}>
+                     <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">{displayDisplayName}</h3>
+                     <div className="opacity-0 group-hover/name:opacity-100 transition-opacity p-1.5 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-200 absolute -right-10">
+                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                     </div>
+                   </div>
+                 )}
+                 <p className="text-sm sm:text-base text-gray-500 mt-1.5 font-medium tracking-wide">{t.dearUser}</p>
+               </div>
+
+               {/* Premium/Free Card */}
+               {user.email === 'cipaonly08@gmail.com' ? (
+                 <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 rounded-[2rem] p-6 sm:p-8 shadow-xl mb-6 sm:mb-8 text-white relative overflow-hidden">
+                   <div className="absolute -top-6 -right-6 p-4 opacity-10 rotate-12">
+                     <Crown className="w-48 h-48" />
+                   </div>
+                   <div className="relative z-10">
+                     <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 hover:bg-white/30 transition-colors rounded-full text-xs font-semibold tracking-wide uppercase mb-6 sm:mb-8 backdrop-blur-sm cursor-default">
+                       <Crown className="w-3.5 h-3.5" /> {t.premiumAccess}
+                     </div>
+                     
+                     <div className="grid grid-cols-2 gap-6 sm:gap-8">
+                       <div>
+                         <div className="text-indigo-100 text-sm font-medium mb-1">{t.currentCredit}</div>
+                         <div className="text-4xl sm:text-5xl font-bold tracking-tight">999</div>
+                         <div className="text-indigo-200/80 text-[11px] sm:text-xs mt-1.5 uppercase tracking-wider font-semibold">{t.freeCredit}: 999</div>
+                       </div>
+                       <div>
+                         <div className="text-indigo-100 text-sm font-medium mb-1">{t.dailyCredit}</div>
+                         <div className="text-4xl sm:text-5xl font-bold tracking-tight">300</div>
+                         <div className="text-indigo-200/80 text-[11px] sm:text-xs mt-1.5 leading-snug pr-2">{t.resetCreditInfo}</div>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+               ) : (
+                 <div className="bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 rounded-[2rem] p-6 sm:p-8 shadow-xl mb-6 sm:mb-8 text-white relative overflow-hidden">
+                   <div className="absolute -top-6 -right-6 p-4 opacity-5 rotate-12">
+                     <Bot className="w-48 h-48" />
+                   </div>
+                   <div className="relative z-10">
+                     <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 hover:bg-white/20 transition-colors rounded-full text-xs font-semibold tracking-wide uppercase mb-6 sm:mb-8 backdrop-blur-sm cursor-default">
+                       <Bot className="w-3.5 h-3.5" /> {t.freeAccess}
+                     </div>
+                     
+                     <div className="grid grid-cols-2 gap-6 sm:gap-8">
+                       <div>
+                         <div className="text-slate-300 text-sm font-medium mb-1">{t.currentCredit}</div>
+                         <div className="text-4xl sm:text-5xl font-bold tracking-tight">{userCredits}</div>
+                         <div className="text-slate-400 text-[11px] sm:text-xs mt-1.5 uppercase tracking-wider font-semibold opacity-70">{t.freeCredit}: {userFreeCredits}</div>
+                       </div>
+                       <div>
+                         <div className="text-slate-300 text-sm font-medium mb-1">{t.dailyCredit}</div>
+                         <div className="text-4xl sm:text-5xl font-bold tracking-tight">0</div>
+                         <div className="text-slate-400 text-[11px] sm:text-xs mt-1.5 leading-snug pr-2 opacity-70">{t.upgradePremiumInfo}</div>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+               )}
+
+               {/* Persona Details */}
+               <div className="bg-white border border-gray-100/80 rounded-[2rem] p-6 sm:p-8 shadow-sm mb-6 sm:mb-8">
+                 <h4 className="text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5">{t.personaDetails}</h4>
+                 <div className="space-y-4 sm:space-y-5">
+                   <div>
+                     <label className="text-xs text-gray-500 font-medium ml-1">Email</label>
+                     <div className="mt-1.5 px-4 py-3.5 bg-gray-50/80 rounded-2xl text-gray-800 font-medium text-sm border border-gray-100/50">
+                       {user.email}
+                     </div>
+                   </div>
+                   <div>
+                     <label className="text-xs text-gray-500 font-medium ml-1">User ID</label>
+                     <div className="mt-1.5 flex items-center justify-between px-4 py-3 bg-gray-50/80 rounded-2xl border border-gray-100/50 group">
+                       <span className="text-gray-700 font-mono text-sm truncate mr-4">{user.uid}</span>
+                       <button onClick={() => {
+                         navigator.clipboard.writeText(user.uid);
+                       }} className="p-2 hover:bg-white rounded-xl transition-all shadow-sm opacity-60 hover:opacity-100 text-gray-500">
+                         <Copy className="w-4 h-4" />
+                       </button>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+
+               {/* Manage Account */}
+               <div className="bg-white border border-gray-100/80 rounded-[2rem] p-6 sm:p-8 shadow-sm">
+                 <h4 className="text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5">{t.manageAccount}</h4>
+                 <div className="space-y-3 sm:space-y-4">
+                   <button onClick={() => { signOut(auth); setShowProfile(false); }} className="w-full flex items-center gap-4 p-4 rounded-2xl border border-gray-100 hover:bg-orange-50 hover:border-orange-100 active:scale-[0.98] transition-all group text-left">
+                     <div className="p-3 bg-orange-100/80 text-orange-600 rounded-xl group-hover:scale-110 transition-transform">
+                       <LogOut className="w-5 h-5" />
+                     </div>
+                     <div>
+                       <div className="font-semibold text-gray-900 group-hover:text-orange-700 transition-colors text-sm sm:text-base">{t.logoutTitle}</div>
+                       <div className="text-xs text-gray-500 mt-0.5">{t.logoutDesc}</div>
+                     </div>
+                   </button>
+
+                   <button className="w-full flex items-center gap-4 p-4 rounded-2xl border border-gray-100 hover:bg-red-50 hover:border-red-100 active:scale-[0.98] transition-all group text-left">
+                     <div className="p-3 bg-red-100/80 text-red-600 rounded-xl group-hover:scale-110 transition-transform">
+                       <Trash2 className="w-5 h-5" />
+                     </div>
+                     <div>
+                       <div className="font-semibold text-gray-900 group-hover:text-red-700 transition-colors text-sm sm:text-base">{t.deleteAccountTitle}</div>
+                       <div className="text-xs text-gray-500 mt-0.5 leading-relaxed">{t.deleteAccountDesc}</div>
+                     </div>
+                   </button>
+                 </div>
+               </div>
+
+              </div>
+            </div>
+
+              {/* Settings Tab */}
+              <div className="w-1/2 h-full overflow-y-auto pb-20">
+                <div className="max-w-xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+                  <div className="bg-white border border-gray-100/80 rounded-[2rem] p-6 sm:p-8 shadow-sm mb-6 sm:mb-8">
+                     <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5">
+                       <Globe className="w-4 h-4" /> {t.languageTitle}
+                     </h4>
+                     <div className="flex flex-col gap-3">
+                       <div className="text-sm text-gray-500 mb-2">{t.languageDesc}</div>
+                       <button 
+                         onClick={() => setLanguage('id')} 
+                         className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${language === 'id' ? 'border-blue-500 bg-blue-50/50' : 'border-gray-100 hover:bg-gray-50'}`}
+                       >
+                         <div className="flex items-center gap-3">
+                           <span className="text-2xl">🇮🇩</span>
+                           <span className={`font-semibold ${language === 'id' ? 'text-blue-700' : 'text-gray-800'}`}>Indonesia</span>
+                         </div>
+                         {language === 'id' && <Check className="w-5 h-5 text-blue-600" />}
+                       </button>
+                       <button 
+                         onClick={() => setLanguage('en')} 
+                         className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${language === 'en' ? 'border-blue-500 bg-blue-50/50' : 'border-gray-100 hover:bg-gray-50'}`}
+                       >
+                         <div className="flex items-center gap-3">
+                           <span className="text-2xl">🇬🇧</span>
+                           <span className={`font-semibold ${language === 'en' ? 'text-blue-700' : 'text-gray-800'}`}>English</span>
+                         </div>
+                         {language === 'en' && <Check className="w-5 h-5 text-blue-600" />}
+                       </button>
+                     </div>
+                  </div>
+                </div>
+              </div>
+
+             </div>
+           </div>
+         </motion.div>
+       )}
+     </AnimatePresence>
+
+     {/* Model Selection Bottom Sheet */}
+     <AnimatePresence>
+       {modelMenuOpen && (
+         <>
+           <motion.div
+             initial={{ opacity: 0 }}
+             animate={{ opacity: 1 }}
+             exit={{ opacity: 0 }}
+             onClick={() => setModelMenuOpen(false)}
+             className="fixed inset-0 bg-black/30 z-[100]"
+           />
+           <motion.div
+             initial={{ opacity: 0, y: "100%" }}
+             animate={{ opacity: 1, y: 0 }}
+             exit={{ opacity: 0, y: "100%" }}
+             transition={{ type: "spring", damping: 25, stiffness: 200 }}
+             className="fixed bottom-0 inset-x-0 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:bottom-8 w-full sm:w-[400px] bg-white rounded-t-[2rem] sm:rounded-[2rem] shadow-xl z-[101] overflow-hidden flex flex-col"
+           >
+             <div className="flex items-center justify-between p-5 border-b border-gray-100 shrink-0">
+               <h3 className="font-semibold px-2 text-gray-800">Pilih Model AI</h3>
+               <button onClick={() => setModelMenuOpen(false)} className="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
+                 <X size={20} />
+               </button>
+             </div>
+             <div className="p-3 space-y-2 mb-2">
+                <button 
+                  onClick={() => { setAiModel("gemini-2.5-flash"); setModelMenuOpen(false); }}
+                  className={`w-full text-left p-4 rounded-2xl transition-all border ${aiModel === "gemini-2.5-flash" ? "bg-blue-50/50 border-blue-200" : "bg-white border-transparent hover:bg-gray-50"}`}
+                >
+                   <div className="flex items-center gap-4">
+                     <div className={`p-2.5 rounded-full ${aiModel === "gemini-2.5-flash" ? "bg-blue-100/50 text-blue-600" : "bg-gray-100 text-gray-600"}`}>
+                        <Sparkles size={20} />
+                     </div>
+                     <div>
+                       <div className={`font-semibold text-[15px] ${aiModel === "gemini-2.5-flash" ? "text-blue-700" : "text-gray-800"}`}>{t.fast}</div>
+                       <div className="text-[13px] text-gray-500 mt-0.5 leading-relaxed">{t.modelStandardDesc}</div>
+                     </div>
+                   </div>
+                </button>
+                <button 
+                  onClick={() => { setAiModel("gemini-2.5-pro"); setModelMenuOpen(false); }}
+                  className={`w-full text-left p-4 rounded-2xl transition-all border ${aiModel === "gemini-2.5-pro" ? "bg-blue-50/50 border-blue-200" : "bg-white border-transparent hover:bg-gray-50"}`}
+                >
+                   <div className="flex items-center gap-4">
+                     <div className={`p-2.5 rounded-full ${aiModel === "gemini-2.5-pro" ? "bg-blue-100/50 text-blue-600" : "bg-gray-100 text-gray-600"}`}>
+                        <Bot size={20} />
+                     </div>
+                     <div>
+                       <div className={`font-semibold text-[15px] ${aiModel === "gemini-2.5-pro" ? "text-blue-700" : "text-gray-800"}`}>{t.pro}</div>
+                       <div className="text-[13px] text-gray-500 mt-0.5 leading-relaxed">{t.modelProDesc}</div>
+                     </div>
+                   </div>
+                </button>
+             </div>
+           </motion.div>
+         </>
+       )}
+     </AnimatePresence>
     </div>
+   </div>
   );
 }
