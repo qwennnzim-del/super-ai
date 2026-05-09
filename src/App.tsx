@@ -959,9 +959,7 @@ export default function App() {
                 transition={{ duration: 0.5 }}
                 className="space-y-6 select-none"
               >
-                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-[1.25rem] bg-gradient-to-tr from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
-                  <span className="text-2xl sm:text-3xl font-bold font-sans">S</span>
-                </div>
+                <img src="/logo.png" alt="Logo" className="w-14 h-14 sm:w-16 sm:h-16 rounded-[1.25rem] shadow-lg shadow-purple-500/20 object-cover" />
                 <div className="space-y-1">
                   <h1 className="text-[1.75rem] sm:text-3xl font-medium text-gray-800">
                     {t.hello} <span className="gradient-text-animated">{displayDisplayName.split(' ')[0]}</span>
@@ -1031,9 +1029,7 @@ export default function App() {
                         ) : (
                           <div className="flex flex-col w-full">
                             <div className="flex items-center gap-3 mb-2 px-1">
-                              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center text-white shadow-sm shrink-0">
-                                <span className="text-sm font-bold font-sans">S</span>
-                              </div>
+                              <img src="/logo.png" alt="Logo" className="w-8 h-8 rounded-xl shadow-sm shrink-0 object-cover" />
                               <span className="font-semibold text-gray-800 text-[1.05rem]">SuperAI</span>
                             </div>
                             <div className="markdown-body w-full max-w-full overflow-x-auto text-gray-800 pl-11">
@@ -1239,9 +1235,7 @@ export default function App() {
                      {pendingMediaTask ? (
                         <div className="flex flex-col items-start w-full pl-1">
                           <div className="flex items-center gap-3 mb-2">
-                             <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center text-white shadow-sm shrink-0">
-                               <span className="text-sm font-bold font-sans">S</span>
-                             </div>
+                             <img src="/logo.png" alt="Logo" className="w-8 h-8 rounded-xl shadow-sm shrink-0 object-cover" />
                              <span className="font-semibold text-gray-800 text-[1.05rem]">SuperAI</span>
                           </div>
                           <div className="pl-11 w-full max-w-sm">
