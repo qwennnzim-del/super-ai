@@ -9,6 +9,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import html2pdf from 'html2pdf.js';
 
 const TextAlignStartIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 5H3"/><path d="M15 12H3"/><path d="M17 19H3"/></svg>
@@ -165,8 +166,8 @@ const CodeBlock = ({ node, inline, className, children, ...props }: any) => {
 // Initialize Gemini API
 const getGeminiApiKey = () => {
   // Try Vite env first (for Vercel deployment), fallback to process.env (for AI Studio)
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
-    return import.meta.env.VITE_GEMINI_API_KEY;
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env && (import.meta as any).env.VITE_GEMINI_API_KEY) {
+    return (import.meta as any).env.VITE_GEMINI_API_KEY;
   }
   return process.env.GEMINI_API_KEY;
 };
@@ -269,6 +270,21 @@ const LoginScreen = ({ onClose, onLoginWithGoogle }: { onClose: () => void, onLo
 };
 
 export default function App() {
+  const handleDownloadPdf = () => {
+    const element = document.getElementById('slide-print-area');
+    if (element && slidePreviewData) {
+      const filename = (slidePreviewData.title || 'Presentasi').replace(/[^a-zA-Z0-9]/g, '_') + '.pdf';
+      const opt = {
+        margin:       0,
+        filename:     filename,
+        image:        { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false },
+        jsPDF:        { unit: 'px' as const, format: [1920, 1080] as [number, number], orientation: 'landscape' as const, hotfixes: ["px_scaling"] }
+      };
+      html2pdf().set(opt).from(element).save();
+    }
+  };
+
   const [showLoginScreen, setShowLoginScreen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -761,31 +777,53 @@ export default function App() {
           setSlideTaskState('rendering');
           setTimeout(() => setSlideTaskState('idle'), 1500);
 
-          let slideDataStr = response.text;
+          let slideDataStr = response.text || "";
           let slideDataObj = null;
+          let isValidJson = false;
           try {
-             slideDataObj = JSON.parse(slideDataStr.replace(/```json/g, '').replace(/```/g, '').trim());
+             const jsonMatch = slideDataStr.match(/\{[\s\S]*\}/);
+             if (jsonMatch) {
+               slideDataObj = JSON.parse(jsonMatch[0]);
+             } else {
+               slideDataObj = JSON.parse(slideDataStr.replace(/```json/gi, '').replace(/```/g, '').trim());
+             }
+             isValidJson = true;
           } catch(e) {
              console.error("Failed to parse slide JSON", e);
-             alert("Maaf, API tidak mengembalikan format JSON yang valid. Silakan coba lagi.");
-             setSlideTaskState('idle');
-             setIsLoading(false);
-             return;
+             slideDataObj = null;
           }
 
           const modelMsgRef = doc(collection(db, `chats/${chatId}/messages`));
-          await setDoc(modelMsgRef, {
+          if (isValidJson && slideDataObj) {
+            await setDoc(modelMsgRef, {
+               chatId: chatId,
+               userId: user.uid,
+               role: "model",
+               text: "Berikut adalah presentasi yang saya buat untuk Anda.",
+               createdAt: serverTimestamp(),
+               slideData: slideDataObj,
+               slideMedia: slideImageMedia
+            });
+          } else {
+            await setDoc(modelMsgRef, {
+               chatId: chatId,
+               userId: user.uid,
+               role: "model",
+               text: "Maaf, terjadi kesalahan saat membuat presentasi. API tidak mengembalikan format yang valid.\n\n```text\n" + slideDataStr.substring(0, 200) + "...\n```",
+               createdAt: serverTimestamp()
+            });
+          }
+          
+         } catch (error: any) {
+           console.error("Slide Gen Error:", error);
+           const modelMsgRef = doc(collection(db, `chats/${chatId}/messages`));
+           await setDoc(modelMsgRef, {
              chatId: chatId,
              userId: user.uid,
              role: "model",
-             text: "Berikut adalah presentasi yang saya buat untuk Anda.",
-             createdAt: serverTimestamp(),
-             slideData: slideDataObj,
-             slideMedia: slideImageMedia
-          });
-          
-         } catch (error) {
-           console.error("Slide Gen Error:", error);
+             text: `Maaf, terjadi kesalahan tak terduga:\n\n${error?.message || "Unknown error"}`,
+             createdAt: serverTimestamp()
+           });
            setSlideTaskState('idle');
          } finally {
            setIsLoading(false);
@@ -1165,7 +1203,7 @@ export default function App() {
                                             setSlidePreviewData(message.slideData);
                                             setSlidePreviewMedia(message.slideMedia || 'ai');
                                             // The print UI will handle the PDF generation
-                                            setTimeout(() => window.print(), 500);
+                                            setTimeout(() => handleDownloadPdf(), 500);
                                         }}
                                         className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-medium transition-colors w-full sm:w-auto shadow-md shadow-purple-600/20"
                                      >
@@ -1979,7 +2017,7 @@ export default function App() {
                 <span className="text-[13px] font-medium text-gray-500">{slidePreviewData.slides?.length || 0} Slide</span>
               </div>
               <div className="flex items-center gap-3 shrink-0">
-                <button onClick={() => window.print()} className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-full font-semibold transition-colors flex items-center gap-2 shadow-md shadow-purple-600/20 text-sm">
+                <button onClick={() => handleDownloadPdf()} className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-full font-semibold transition-colors flex items-center gap-2 shadow-md shadow-purple-600/20 text-sm">
                   <Download className="w-4 h-4" /> <span className="hidden sm:inline">Export PDF</span>
                 </button>
                 <button onClick={() => setSlidePreviewData(null)} className="w-10 h-10 flex items-center justify-center hover:bg-gray-200 text-gray-600 rounded-full transition-colors flex-shrink-0 bg-gray-100">
