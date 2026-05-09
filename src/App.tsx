@@ -10,6 +10,7 @@ import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import html2pdf from 'html2pdf.js';
+import pptxgen from "pptxgenjs";
 
 const TextAlignStartIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 5H3"/><path d="M15 12H3"/><path d="M17 19H3"/></svg>
@@ -283,6 +284,70 @@ export default function App() {
       };
       html2pdf().set(opt).from(element).save();
     }
+  };
+
+  const handleDownloadPptx = () => {
+    if (!slidePreviewData) return;
+    
+    let pres = new pptxgen();
+    pres.layout = 'LAYOUT_16x9';
+
+    // Title Slide
+    let slide = pres.addSlide();
+    slide.background = { color: "F3E8FF" }; // Lighter purple background
+    slide.addText(slidePreviewData.title || "Presentasi Anda", {
+      x: 1, y: 2, w: '80%', h: 1.5,
+      fontSize: 48,
+      bold: true,
+      color: "6B21A8", // Purple 800
+      align: "center",
+      valign: "middle"
+    });
+    slide.addText("Dibuat oleh AI SuperAI", {
+      x: 1, y: 3.5, w: '80%', h: 1,
+      fontSize: 24,
+      color: "6B7280",
+      align: "center",
+      valign: "middle"
+    });
+
+    // Content Slides
+    if (slidePreviewData.slides && Array.isArray(slidePreviewData.slides)) {
+      slidePreviewData.slides.forEach((slideData: any) => {
+        let presSlide = pres.addSlide();
+        presSlide.background = { color: "FFFFFF" };
+
+        presSlide.addText(slideData.title, {
+          x: 0.5, y: 0.5, w: '90%', h: 1,
+          fontSize: 32,
+          bold: true,
+          color: "1F2937",
+        });
+
+        if (slideData.content && Array.isArray(slideData.content)) {
+          const bulletPoints = slideData.content.map((pt: string) => ({ text: pt }));
+          presSlide.addText(bulletPoints, {
+            x: 0.5, y: 1.8, w: '55%', h: 3.5,
+            fontSize: 20,
+            color: "4B5563",
+            bullet: { type: 'number' },
+            valign: "top"
+          });
+        }
+
+        if (slideData.imagePrompt) {
+          const promptUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(slideData.imagePrompt)}?width=800&height=1200&nologo=true`;
+          presSlide.addImage({
+            path: promptUrl,
+            x: '55%', y: 1, w: '40%', h: '80%',
+            sizing: { type: 'cover', w: '40%', h: '80%' }
+          });
+        }
+      });
+    }
+
+    const filename = (slidePreviewData.title || 'Presentasi').replace(/[^a-zA-Z0-9]/g, '_') + '.pptx';
+    pres.writeFile({ fileName: filename });
   };
 
   const [showLoginScreen, setShowLoginScreen] = useState(false);
@@ -1202,13 +1267,23 @@ export default function App() {
                                         onClick={() => {
                                             setSlidePreviewData(message.slideData);
                                             setSlidePreviewMedia(message.slideMedia || 'ai');
-                                            // The print UI will handle the PDF generation
                                             setTimeout(() => handleDownloadPdf(), 500);
                                         }}
                                         className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-medium transition-colors w-full sm:w-auto shadow-md shadow-purple-600/20"
                                      >
                                         <Download className="w-4 h-4" />
                                         Download PDF
+                                     </button>
+                                     <button 
+                                        onClick={() => {
+                                            setSlidePreviewData(message.slideData);
+                                            setSlidePreviewMedia(message.slideMedia || 'ai');
+                                            setTimeout(() => handleDownloadPptx(), 100);
+                                        }}
+                                        className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-medium transition-colors w-full sm:w-auto shadow-md shadow-orange-500/20"
+                                     >
+                                        <Download className="w-4 h-4" />
+                                        Download PPTX
                                      </button>
                                   </div>
                                </div>
@@ -2019,6 +2094,9 @@ export default function App() {
               <div className="flex items-center gap-3 shrink-0">
                 <button onClick={() => handleDownloadPdf()} className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-full font-semibold transition-colors flex items-center gap-2 shadow-md shadow-purple-600/20 text-sm">
                   <Download className="w-4 h-4" /> <span className="hidden sm:inline">Export PDF</span>
+                </button>
+                <button onClick={() => handleDownloadPptx()} className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-full font-semibold transition-colors flex items-center gap-2 shadow-md shadow-orange-500/20 text-sm">
+                  <Download className="w-4 h-4" /> <span className="hidden sm:inline">Export PPTX</span>
                 </button>
                 <button onClick={() => setSlidePreviewData(null)} className="w-10 h-10 flex items-center justify-center hover:bg-gray-200 text-gray-600 rounded-full transition-colors flex-shrink-0 bg-gray-100">
                   <X className="w-5 h-5"/>
