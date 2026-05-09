@@ -272,7 +272,9 @@ export default function App() {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isAutoScrollPaused = useRef(false);
   
   // Auth & Chat State
   const [user, setUser] = useState<User | null>(null);
@@ -404,13 +406,21 @@ export default function App() {
   const displayPhotoURL = customPhotoURL || user?.photoURL;
   const displayDisplayName = customDisplayName || user?.displayName || 'User';
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+  const scrollToBottom = (force = false) => {
+    if (force || !isAutoScrollPaused.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: force ? "smooth" : "auto" });
+    }
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isLoading]);
+    // When messages array length changes (new message), force smooth scroll
+    scrollToBottom(true);
+  }, [messages.length]);
+
+  useEffect(() => {
+    // When streaming text changes, auto scroll without forcing
+    scrollToBottom(false);
+  }, [streamingText, isLoading]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -930,8 +940,16 @@ export default function App() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto px-4 sm:px-6 pb-48">
-        <div className="max-w-3xl mx-auto h-full flex flex-col">
+      <main 
+        ref={mainRef}
+        onScroll={(e) => {
+          const target = e.target as HTMLDivElement;
+          const isAtBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 100;
+          isAutoScrollPaused.current = !isAtBottom;
+        }}
+        className="flex-1 overflow-y-auto px-4 sm:px-6 pb-48"
+      >
+        <div className="max-w-3xl mx-auto min-h-full flex flex-col">
           {messages.length === 0 ? (
             // Greeting State
             <div className="flex-1 flex flex-col justify-center pb-20">
