@@ -163,7 +163,15 @@ const CodeBlock = ({ node, inline, className, children, ...props }: any) => {
 };
 
 // Initialize Gemini API
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const getGeminiApiKey = () => {
+  // Try Vite env first (for Vercel deployment), fallback to process.env (for AI Studio)
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
+    return import.meta.env.VITE_GEMINI_API_KEY;
+  }
+  return process.env.GEMINI_API_KEY;
+};
+
+const ai = new GoogleGenAI({ apiKey: getGeminiApiKey() });
 
 type Attachment = {
   name: string;
@@ -771,6 +779,13 @@ export default function App() {
     }
   };
 
+  const isQuizTime = appMode === 'learn' && 
+    messages.length > 0 && 
+    messages[messages.length - 1].role === 'model' && 
+    !isLoading && 
+    /(?:^|\n)\s*(?:[-*]\s*)?A[\.)]\s/i.test(messages[messages.length - 1].text) && 
+    /(?:^|\n)\s*(?:[-*]\s*)?B[\.)]\s/i.test(messages[messages.length - 1].text);
+
   return (
     
    <div className="flex flex-col h-[100dvh] bg-[#f4f7fb] text-gray-900 font-sans relative overflow-hidden">
@@ -1318,7 +1333,7 @@ export default function App() {
               </div>
             )}
 
-            {appMode === 'learn' && (
+            {isQuizTime && (
               <div className="flex gap-2 px-4 pt-2 -mb-1 pb-1 overflow-x-auto scrollbar-hide">
                 {['A', 'B', 'C', 'D'].map(opt => (
                   <button 
