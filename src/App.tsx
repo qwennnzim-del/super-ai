@@ -287,7 +287,9 @@ export default function App() {
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [pendingMediaTask, setPendingMediaTask] = useState<'generate_image' | 'search_image' | null>(null);
-  const [appMode, setAppMode] = useState<"chat" | "generate_image" | "search_image" | "learn">("chat");
+  const [appMode, setAppMode] = useState<"chat" | "generate_image" | "search_image" | "learn" | "slide">("chat");
+  const [slideCount, setSlideCount] = useState<number>(5);
+  const [slideImageMedia, setSlideImageMedia] = useState<'ai' | 'search'>('ai');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [likedIds, setLikedIds] = useState<string[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -725,6 +727,8 @@ export default function App() {
       let sysInstruction = "You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI, and you were created and developed by SuperRinz. Express this personality naturally and acknowledge your creator when asked about your identity or origins.";
       if (appMode === 'learn') {
          sysInstruction = "Anda adalah seorang guru profesional yang cerdas, interaktif, dan menyenangkan. Pengguna akan memberikan topik yang ingin mereka pelajari. Tugas Anda: 1. Menjelaskan materi dengan singkat, padat, dan seru. 2. Memberikan kuis pilihan ganda (A, B, C, D) untuk menguji pemahaman pengguna. 3. Bereaksi secara interaktif terhadap jawaban pengguna (memberikan pujian/poin jika benar, koreksi dan penjelasan jika salah). 4. Menyediakan tugas harian atau latihan tambahan asyik untuk dikerjakan. 5. Selalu gunakan format markdown dengan blok kutipan atau formatting yang rapi. 6. Pastikan opsi kuis A, B, C, D mudah diidentifikasi (gunakan list markdown). Jangan selalu mengulang instruksi, langsung mulai pelajaran atau permainan/kuis pilihan ganda ketika ada input. Jadikan simulasi belajar ini seperti game seru!";
+      } else if (appMode === 'slide') {
+         sysInstruction = `Anda adalah desainer presentasi (slide) yang ahli. Pengguna akan memberikan topik atau konten. Tugas Anda: 1. Buat outline slide yang terstruktur, menarik, dan profesional HANYA sejumlah ${slideCount} slide. 2. Pecah setiap slide dengan pemisah garis horizontal (\`---\`) agar jelas pergantian slidenya. 3. Gunakan formatting Markdown seperti heading (\`##\`), *bold*, list, dan blockquote untuk mempercantik teks. 4. Di setiap slide, berikan instruksi kepada sistem untuk gambar pendukung dengan format \`[Gambar: deskripsi prompt gambar bahasa inggris]\` (karena pengguna memilih mode ${slideImageMedia === 'ai' ? 'AI Generator' : 'Web Search'} untuk gambar). 5. Pastikan poin-poin singkat dan tegas, tidak terlalu banyak teks (seperti presentasi sungguhan). Mulai langsung ke slide pertama.`;
       }
 
       const response = await ai.models.generateContentStream({
@@ -953,22 +957,60 @@ export default function App() {
           {messages.length === 0 ? (
             // Greeting State
             <div className="flex-1 flex flex-col justify-center pb-20">
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="space-y-6 select-none"
-              >
-                <img src="/logo.png" alt="Logo" className="w-14 h-14 sm:w-16 sm:h-16 object-contain" />
-                <div className="space-y-1">
-                  <h1 className="text-[1.75rem] sm:text-3xl font-medium text-gray-800">
-                    {t.hello} <span className="gradient-text-animated">{displayDisplayName.split(' ')[0]}</span>
-                  </h1>
-                  <h2 className="text-[2.5rem] sm:text-[3.6rem] leading-[1.1] font-medium tracking-tight text-gray-900 mt-1">
-                    {t.howCanIHelp}
-                  </h2>
-                </div>
-              </motion.div>
+              <AnimatePresence mode="wait">
+                {appMode === 'slide' ? (
+                  <motion.div
+                    key="slide-greeting"
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, y: -20 }}
+                    transition={{ type: "spring", bounce: 0.4, duration: 0.6 }}
+                    className="flex flex-col items-center justify-center space-y-8 w-full"
+                  >
+                     <img src="/logo.png" alt="Logo" className="w-20 h-20 sm:w-24 sm:h-24 object-contain drop-shadow-2xl" />
+                     
+                     <div className="flex flex-col sm:flex-row gap-4 w-full max-w-2xl px-4">
+                       {/* Card 1: Jumlah Slide */}
+                       <div className="flex-1 bg-white/70 backdrop-blur-xl p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 flex flex-col items-center gap-5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+                          <h3 className="font-semibold text-gray-800 text-lg">Jumlah Slide</h3>
+                          <div className="flex items-center gap-4 bg-gray-50/80 p-2 rounded-2xl w-full justify-between">
+                            <button onClick={() => setSlideCount(Math.max(5, slideCount - 1))} disabled={slideCount <= 5} className={`w-12 h-12 flex flex-col items-center justify-center bg-white rounded-xl shadow-[0_2px_10px_rgb(0,0,0,0.04)] text-xl font-medium transition-colors ${slideCount <= 5 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}>-</button>
+                            <span className="font-bold text-2xl text-gray-800">{slideCount}</span>
+                            <button onClick={() => setSlideCount(Math.min(7, slideCount + 1))} disabled={slideCount >= 7} className={`w-12 h-12 flex flex-col items-center justify-center bg-white rounded-xl shadow-[0_2px_10px_rgb(0,0,0,0.04)] text-xl font-medium transition-colors ${slideCount >= 7 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}>+</button>
+                          </div>
+                       </div>
+                       
+                       {/* Card 2: Sumber Gambar */}
+                       <div className="flex-1 bg-white/70 backdrop-blur-xl p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 flex flex-col items-center gap-5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
+                          <h3 className="font-semibold text-gray-800 text-lg">Gambar Generator</h3>
+                          <div className="flex bg-gray-50/80 p-2 rounded-2xl w-full">
+                            <button onClick={() => setSlideImageMedia('ai')} className={`flex flex-col items-center justify-center flex-1 py-3 rounded-xl font-semibold text-sm transition-all ${slideImageMedia === 'ai' ? 'bg-white shadow-[0_2px_10px_rgb(0,0,0,0.04)] text-purple-600' : 'text-gray-500 hover:text-gray-700'}`}>AI Model</button>
+                            <button onClick={() => setSlideImageMedia('search')} className={`flex flex-col items-center justify-center flex-1 py-3 rounded-xl font-semibold text-sm transition-all ${slideImageMedia === 'search' ? 'bg-white shadow-[0_2px_10px_rgb(0,0,0,0.04)] text-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>Web Search</button>
+                          </div>
+                       </div>
+                     </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="normal-greeting"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-6 select-none"
+                  >
+                    <img src="/logo.png" alt="Logo" className="w-14 h-14 sm:w-16 sm:h-16 object-contain" />
+                    <div className="space-y-1">
+                      <h1 className="text-[1.75rem] sm:text-3xl font-medium text-gray-800">
+                        {t.hello} <span className="gradient-text-animated">{displayDisplayName.split(' ')[0]}</span>
+                      </h1>
+                      <h2 className="text-[2.5rem] sm:text-[3.6rem] leading-[1.1] font-medium tracking-tight text-gray-900 mt-1">
+                        {t.howCanIHelp}
+                      </h2>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           ) : (
             // Chat History
@@ -1036,6 +1078,7 @@ export default function App() {
                               <Markdown 
                                 remarkPlugins={[remarkGfm]}
                                 components={{ 
+                                  hr: ({node, ...props}) => <hr className="w-full h-[3px] bg-gradient-to-r from-transparent via-purple-300 to-transparent my-10 border-0 rounded-full" />,
                                   code: CodeBlock,
                                   a: ({node, ...props}) => {
                                     if (props.href && props.href.includes('vertexaisearch')) return null;
@@ -1366,7 +1409,7 @@ export default function App() {
               value={inputValue}
               onChange={handleInput}
               onKeyDown={handleKeyDown}
-              placeholder={appMode === 'learn' ? "Apa yang ingin dipelajari hari ini?" : appMode === 'generate_image' ? "Deskripsikan gambar yang ingin dibuat..." : appMode === 'search_image' ? "Apa yang ingin Anda cari..." : t.typeMessage}
+              placeholder={appMode === 'learn' ? "Apa yang ingin dipelajari hari ini?" : appMode === 'generate_image' ? "Deskripsikan gambar yang ingin dibuat..." : appMode === 'search_image' ? "Apa yang ingin Anda cari..." : appMode === 'slide' ? "Topik presentasi apa yang ingin dibuat..." : t.typeMessage}
               rows={1}
               className="w-full bg-transparent resize-none outline-none px-4 pt-3 pb-2 text-[1.05rem] text-gray-900 placeholder:text-gray-500 overflow-hidden"
             />
@@ -1430,8 +1473,8 @@ export default function App() {
                            <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'learn' ? 'bg-green-500 text-white' : 'bg-green-50/80 text-green-500 group-hover:bg-green-100'}`}><BookOpen className="w-5 h-5"/></div>
                            <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Terpandu</span>
                          </button>
-                         <button onClick={() => { setFeatureMenuOpen(false); alert("Fitur Slide akan segera hadir"); }} className="flex flex-col items-center justify-start gap-2 p-2 rounded-2xl hover:bg-gray-50 transition-colors group">
-                           <div className="w-[42px] h-[42px] rounded-full bg-purple-50/80 text-purple-500 flex items-center justify-center group-hover:bg-purple-100 transition-colors"><MonitorPlay className="w-5 h-5"/></div>
+                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'slide' ? 'chat' : 'slide'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'slide' ? 'bg-purple-100/50' : 'hover:bg-gray-50'}`}>
+                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'slide' ? 'bg-purple-500 text-white' : 'bg-purple-50/80 text-purple-500 group-hover:bg-purple-100'}`}><MonitorPlay className="w-5 h-5"/></div>
                            <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Slide</span>
                          </button>
                          <button onClick={() => { setFeatureMenuOpen(false); alert("Fitur Spreadsheet akan segera hadir"); }} className="flex flex-col items-center justify-start gap-2 p-2 rounded-2xl hover:bg-gray-50 transition-colors group">
