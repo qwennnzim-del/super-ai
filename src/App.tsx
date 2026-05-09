@@ -185,6 +185,8 @@ type Message = {
   createdAt?: any;
   groundingChunks?: any[];
   attachments?: Attachment[];
+  slideData?: any;
+  slideMedia?: 'ai' | 'search';
 };
 
 type Chat = {
@@ -290,6 +292,9 @@ export default function App() {
   const [appMode, setAppMode] = useState<"chat" | "generate_image" | "search_image" | "learn" | "slide">("chat");
   const [slideCount, setSlideCount] = useState<number>(5);
   const [slideImageMedia, setSlideImageMedia] = useState<'ai' | 'search'>('ai');
+  const [slideTaskState, setSlideTaskState] = useState<'idle' | 'outline' | 'composing' | 'rendering' | 'done'>('idle');
+  const [slidePreviewData, setSlidePreviewData] = useState<any | null>(null);
+  const [slidePreviewMedia, setSlidePreviewMedia] = useState<'ai' | 'search'>('ai');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [likedIds, setLikedIds] = useState<string[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -724,11 +729,75 @@ export default function App() {
          }
       } else {
 
+      if (appMode === 'slide') {
+         try {
+           setIsSearching(false);
+           setSlideTaskState('outline');
+           
+           let sysInstruction = `Anda adalah pembuat presentasi JSON. Buat presentasi dengan TEGAS tepat ${slideCount} slide. Output HANYA MERUPAKAN JSON JAWABAN VALID dengan format:
+{
+  "title": "Judul Presentasi",
+  "slides": [
+    {
+      "title": "Judul Slide",
+      "content": ["Poin 1", "Poin 2"],
+      "imagePrompt": "prompt spesifik untuk mencari/membuat gambar dalam bahasa inggris"
+    }
+  ]
+}`;
+
+          // we mock delay to show stepper to user
+          setTimeout(() => setSlideTaskState('composing'), 2000);
+          
+          const response = await ai.models.generateContent({
+             model: "gemini-2.5-pro",
+             contents: contents, // User prompt
+             config: {
+               systemInstruction: sysInstruction,
+               responseMimeType: "application/json"
+             }
+          });
+
+          setSlideTaskState('rendering');
+          setTimeout(() => setSlideTaskState('idle'), 1500);
+
+          let slideDataStr = response.text;
+          let slideDataObj = null;
+          try {
+             slideDataObj = JSON.parse(slideDataStr.replace(/```json/g, '').replace(/```/g, '').trim());
+          } catch(e) {
+             console.error("Failed to parse slide JSON", e);
+             alert("Maaf, API tidak mengembalikan format JSON yang valid. Silakan coba lagi.");
+             setSlideTaskState('idle');
+             setIsLoading(false);
+             return;
+          }
+
+          const modelMsgRef = doc(collection(db, `chats/${chatId}/messages`));
+          await setDoc(modelMsgRef, {
+             chatId: chatId,
+             userId: user.uid,
+             role: "model",
+             text: "Berikut adalah presentasi yang saya buat untuk Anda.",
+             createdAt: serverTimestamp(),
+             slideData: slideDataObj,
+             slideMedia: slideImageMedia
+          });
+          
+         } catch (error) {
+           console.error("Slide Gen Error:", error);
+           setSlideTaskState('idle');
+         } finally {
+           setIsLoading(false);
+           setSlideTaskState('idle');
+         }
+         return; // We skip the streaming part below
+      }
+
       let sysInstruction = "You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI, and you were created and developed by SuperRinz. Express this personality naturally and acknowledge your creator when asked about your identity or origins.";
+
       if (appMode === 'learn') {
          sysInstruction = "Anda adalah seorang guru profesional yang cerdas, interaktif, dan menyenangkan. Pengguna akan memberikan topik yang ingin mereka pelajari. Tugas Anda: 1. Menjelaskan materi dengan singkat, padat, dan seru. 2. Memberikan kuis pilihan ganda (A, B, C, D) untuk menguji pemahaman pengguna. 3. Bereaksi secara interaktif terhadap jawaban pengguna (memberikan pujian/poin jika benar, koreksi dan penjelasan jika salah). 4. Menyediakan tugas harian atau latihan tambahan asyik untuk dikerjakan. 5. Selalu gunakan format markdown dengan blok kutipan atau formatting yang rapi. 6. Pastikan opsi kuis A, B, C, D mudah diidentifikasi (gunakan list markdown). Jangan selalu mengulang instruksi, langsung mulai pelajaran atau permainan/kuis pilihan ganda ketika ada input. Jadikan simulasi belajar ini seperti game seru!";
-      } else if (appMode === 'slide') {
-         sysInstruction = `Anda adalah desainer presentasi (slide) yang ahli. Pengguna akan memberikan topik atau konten. Tugas Anda: 1. Buat outline slide yang terstruktur, menarik, dan profesional HANYA sejumlah ${slideCount} slide. 2. Pecah setiap slide dengan pemisah garis horizontal (\`---\`) agar jelas pergantian slidenya. 3. Gunakan formatting Markdown seperti heading (\`##\`), *bold*, list, dan blockquote untuk mempercantik teks. 4. Di setiap slide, berikan instruksi kepada sistem untuk gambar pendukung dengan format \`[Gambar: deskripsi prompt gambar bahasa inggris]\` (karena pengguna memilih mode ${slideImageMedia === 'ai' ? 'AI Generator' : 'Web Search'} untuk gambar). 5. Pastikan poin-poin singkat dan tegas, tidak terlalu banyak teks (seperti presentasi sungguhan). Mulai langsung ke slide pertama.`;
       }
 
       const response = await ai.models.generateContentStream({
@@ -1068,6 +1137,45 @@ export default function App() {
                                 {isSearching ? 'Menghubungkan ke Google...' : 'Berfikir...'}
                              </span>
                            </div>
+                        ) : message.slideData ? (
+                          <div className="flex flex-col w-full">
+                            <div className="flex items-center gap-3 mb-2 px-1">
+                              <img src="/logo.png" alt="Logo" className="w-8 h-8 shrink-0 object-contain" />
+                              <span className="font-semibold text-gray-800 text-[1.05rem]">SuperAI</span>
+                            </div>
+                            <div className="pl-11 w-full max-w-full">
+                               <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center gap-4">
+                                  <MonitorPlay className="w-12 h-12 text-purple-500" />
+                                  <h3 className="font-semibold text-gray-800 text-lg text-center">{message.slideData.title || "Presentasi Anda"}</h3>
+                                  <p className="text-sm text-gray-500 text-center -mt-2 mb-2">{message.slideData.slides?.length || 0} Slide • Dibuat menggunakan {message.slideMedia === 'ai' ? 'AI Generator' : 'Web Search'}</p>
+                                  
+                                  <div className="flex flex-col sm:flex-row items-center gap-3 w-full justify-center">
+                                     <button 
+                                        onClick={() => {
+                                            setSlidePreviewData(message.slideData);
+                                            setSlidePreviewMedia(message.slideMedia || 'ai');
+                                        }}
+                                        className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-600 font-medium transition-colors w-full sm:w-auto"
+                                     >
+                                        <Eye className="w-4 h-4" />
+                                        Lihat Preview
+                                     </button>
+                                     <button 
+                                        onClick={() => {
+                                            setSlidePreviewData(message.slideData);
+                                            setSlidePreviewMedia(message.slideMedia || 'ai');
+                                            // The print UI will handle the PDF generation
+                                            setTimeout(() => window.print(), 500);
+                                        }}
+                                        className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-medium transition-colors w-full sm:w-auto shadow-md shadow-purple-600/20"
+                                     >
+                                        <Download className="w-4 h-4" />
+                                        Download PDF
+                                     </button>
+                                  </div>
+                               </div>
+                            </div>
+                          </div>
                         ) : (
                           <div className="flex flex-col w-full">
                             <div className="flex items-center gap-3 mb-2 px-1">
@@ -1075,6 +1183,7 @@ export default function App() {
                               <span className="font-semibold text-gray-800 text-[1.05rem]">SuperAI</span>
                             </div>
                             <div className="markdown-body w-full max-w-full overflow-x-auto text-gray-800 pl-11">
+
                               <Markdown 
                                 remarkPlugins={[remarkGfm]}
                                 components={{ 
@@ -1275,7 +1384,34 @@ export default function App() {
                     transition={{ duration: 0.4, ease: "easeOut" }}
                     className="flex justify-start w-full mt-2 mb-2"
                   >
-                     {pendingMediaTask ? (
+                     {slideTaskState !== 'idle' ? (
+                        <div className="flex flex-col items-start w-full pl-1">
+                          <div className="flex items-center gap-3 mb-2">
+                             <img src="/logo.png" alt="Logo" className="w-8 h-8 shrink-0 object-contain" />
+                             <span className="font-semibold text-gray-800 text-[1.05rem]">SuperAI</span>
+                          </div>
+                          <div className="pl-11 w-full max-w-sm">
+                             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col gap-3">
+                               <div className="flex items-center gap-3">
+                                  <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 ${slideTaskState === 'outline' ? 'border-purple-500 border-t-transparent animate-spin' : 'border-green-500 bg-green-500'}`}>
+                                     {slideTaskState !== 'outline' && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
+                                  </div>
+                                  <span className={`text-sm font-medium ${slideTaskState === 'outline' ? 'text-gray-900' : 'text-gray-500'}`}>Membuat kerangka presentasi</span>
+                               </div>
+                               <div className="flex items-center gap-3">
+                                  <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 ${slideTaskState === 'composing' ? 'border-purple-500 border-t-transparent animate-spin' : slideTaskState === 'rendering' ? 'border-green-500 bg-green-500' : 'border-gray-200'}`}>
+                                     {slideTaskState === 'rendering' && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
+                                  </div>
+                                  <span className={`text-sm font-medium ${slideTaskState === 'composing' ? 'text-gray-900' : slideTaskState === 'rendering' ? 'text-gray-500' : 'text-gray-400'}`}>Menyusun slide presentasi</span>
+                               </div>
+                               <div className="flex items-center gap-3">
+                                  <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 ${slideTaskState === 'rendering' ? 'border-purple-500 border-t-transparent animate-spin' : 'border-gray-200'}`}></div>
+                                  <span className={`text-sm font-medium ${slideTaskState === 'rendering' ? 'text-gray-900' : 'text-gray-400'}`}>Merender hasil PDF</span>
+                               </div>
+                             </div>
+                          </div>
+                        </div>
+                     ) : pendingMediaTask ? (
                         <div className="flex flex-col items-start w-full pl-1">
                           <div className="flex items-center gap-3 mb-2">
                              <img src="/logo.png" alt="Logo" className="w-8 h-8 shrink-0 object-contain" />
@@ -1827,7 +1963,108 @@ export default function App() {
          </>
        )}
      </AnimatePresence>
+
+      {/* Slide Preview Overlay */}
+      <AnimatePresence>
+        {slidePreviewData && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed inset-0 bg-gray-100 z-[200] flex flex-col overflow-y-auto"
+          >
+            <div className="sticky top-0 bg-white/90 backdrop-blur-xl px-4 sm:px-8 py-4 flex items-center justify-between border-b border-gray-200/50 z-50 shadow-sm print:hidden">
+              <div className="flex flex-col">
+                <h2 className="font-bold text-lg sm:text-xl text-gray-800 line-clamp-1">{slidePreviewData.title || "Presentasi Anda"}</h2>
+                <span className="text-[13px] font-medium text-gray-500">{slidePreviewData.slides?.length || 0} Slide</span>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <button onClick={() => window.print()} className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-full font-semibold transition-colors flex items-center gap-2 shadow-md shadow-purple-600/20 text-sm">
+                  <Download className="w-4 h-4" /> <span className="hidden sm:inline">Export PDF</span>
+                </button>
+                <button onClick={() => setSlidePreviewData(null)} className="w-10 h-10 flex items-center justify-center hover:bg-gray-200 text-gray-600 rounded-full transition-colors flex-shrink-0 bg-gray-100">
+                  <X className="w-5 h-5"/>
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-4 sm:p-10 pb-32 flex flex-col items-center gap-10 sm:gap-16 w-full" id="slide-print-area">
+              <style>
+                {`
+                  @media print {
+                    @page { size: 1920px 1080px landscape !important; margin: 0 !important; }
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: white; margin: 0; padding: 0; }
+                    body * { visibility: hidden; }
+                    #slide-print-area, #slide-print-area * { visibility: visible; }
+                    #slide-print-area { position: absolute; left: 0; top: 0; width: 100vw; background: white; padding: 0 !important; gap: 0 !important; margin: 0 !important; }
+                    .slide-page { 
+                       width: 1920px !important; 
+                       height: 1080px !important; 
+                       max-width: none !important; 
+                       max-height: none !important; 
+                       border: none !important; 
+                       border-radius: 0 !important; 
+                       box-shadow: none !important; 
+                       page-break-after: always; 
+                       page-break-inside: avoid;
+                       display: flex !important; 
+                       margin: 0 !important; 
+                       padding: 0 !important;
+                       transform: scale(1) !important;
+                    }
+                  }
+                `}
+              </style>
+              
+              {/* Title Slide */}
+              <div className="slide-page w-full max-w-[1100px] aspect-video bg-white sm:rounded-3xl shadow-xl overflow-hidden flex flex-col items-center justify-center p-12 sm:p-24 relative outline outline-1 outline-gray-200/50 print:outline-none print:shadow-none mx-auto shrink-0 transition-transform">
+                <div className="absolute inset-0 bg-gradient-to-tr from-purple-50 via-white to-pink-50 opacity-60"></div>
+                <h1 className="text-5xl sm:text-[5rem] font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-purple-700 to-pink-600 text-center leading-[1.1] mb-8 relative z-10 tracking-tight">{slidePreviewData.title}</h1>
+                <div className="w-24 h-1.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full relative z-10 mb-8"></div>
+                <p className="text-xl sm:text-2xl text-gray-500 font-medium relative z-10 text-center tracking-wide">Dibuat oleh AI SuperAI</p>
+              </div>
+
+              {/* Content Slides */}
+              {slidePreviewData.slides?.map((slide: any, idx: number) => (
+                <div key={idx} className="slide-page w-full max-w-[1100px] aspect-video bg-white sm:rounded-3xl shadow-xl overflow-hidden flex flex-col sm:flex-row relative outline outline-1 outline-gray-200/50 print:outline-none print:shadow-none mx-auto shrink-0">
+                  <div className="flex-1 p-8 sm:p-16 flex flex-col justify-start">
+                    <h2 className="text-3xl sm:text-5xl font-bold text-gray-800 leading-tight mb-8 sm:mb-12 relative inline-block self-start">
+                       {slide.title}
+                       <div className="absolute -bottom-4 left-0 w-16 h-1.5 bg-purple-500 rounded-full"></div>
+                    </h2>
+                    <ul className="space-y-5 sm:space-y-8 flex-1 flex flex-col justify-center mb-6">
+                       {slide.content?.map((point: string, i: number) => (
+                         <li key={i} className="flex items-start gap-4 sm:gap-5 text-lg sm:text-[1.65rem] text-gray-600 leading-[1.4] font-medium">
+                           <span className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full shrink-0 mt-[0.6rem] shadow-sm" />
+                           <span className="flex-1">{point}</span>
+                         </li>
+                       ))}
+                    </ul>
+                    <div className="text-gray-400 font-bold font-mono tracking-widest uppercase text-xs sm:text-sm mt-auto select-none pt-6 border-t border-gray-100 flex items-center justify-between">
+                      <span>SuperAI</span>
+                      <span>{idx + 1}</span>
+                    </div>
+                  </div>
+                  {slide.imagePrompt && (
+                    <div className="w-full sm:w-[45%] h-64 sm:h-auto shrink-0 bg-gray-100 flex items-center justify-center overflow-hidden relative">
+                       <img 
+                         src={`https://image.pollinations.ai/prompt/${encodeURIComponent(slide.imagePrompt)}?width=800&height=1200&nologo=true`} 
+                         alt={slide.imagePrompt} 
+                         className="w-full h-full object-cover" 
+                         referrerPolicy="no-referrer"
+                         crossOrigin="anonymous"
+                       />
+                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80"></div>
+                       <div className="absolute bottom-4 right-5 sm:bottom-6 sm:right-6 bg-black/40 backdrop-blur-md text-white/90 text-[11px] px-3 py-1.5 rounded-full font-medium tracking-wide border border-white/10 shadow-lg">AI Generated</div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+     </div>
     </div>
-   </div>
   );
 }
