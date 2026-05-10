@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { Sparkles, Mic, ChevronDown, Menu, Frame, SquareArrowUpRight, Bot, Check, Copy, MessageSquare, Trash2, LogOut, X, Search, Mail, Lock, Eye, Globe, Camera, Image as ImageIcon, FileText, Paperclip, Plus, Crown, ThumbsUp, Share2, Palette, BookOpen, MonitorPlay, Table, Briefcase, Download } from "lucide-react";
+import { Info, Shield, HelpCircle, ChevronRight, ArrowLeft, Sparkles, Mic, ChevronDown, Menu, Frame, SquareArrowUpRight, Bot, Check, Copy, MessageSquare, Trash2, LogOut, X, Search, Mail, Lock, Eye, Globe, Camera, Image as ImageIcon, FileText, Paperclip, Plus, Crown, ThumbsUp, Share2, Palette, BookOpen, MonitorPlay, Table, Briefcase, Download } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { auth, db, googleAuthProvider, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
@@ -64,6 +64,15 @@ const TRANSLATIONS = {
     stopGenerating: "Hentikan",
     languageTitle: "Bahasa",
     languageDesc: "Pilih bahasa antarmuka aplikasi",
+    aboutTitle: "Tentang",
+    aboutDesc: "Informasi mengenai aplikasi SuperAI.",
+    privacyTitle: "Kebijakan & Privasi",
+    privacyDesc: "Bagaimana kami mengelola data Anda.",
+    helpTitle: "Bantuan",
+    helpDesc: "Panduan menggunakan aplikasi SuperAI.",
+    aboutContent: "SuperAI adalah asisten kecerdasan buatan komprehensif yang dikembangkan secara eksklusif oleh SuperRinz. Tujuan diciptakannya aplikasi ini adalah untuk merevolusi cara pengguna berinteraksi dengan AI—menyediakan antarmuka intuitif dan mulus yang tidak hanya membantu dalam tugas-tugas penulisan dan pencarian informasi biasa, tetapi juga dalam pembuatan slide presentasi dan percakapan dinamis. Kami berkomitmen dalam mengintegrasikan teknologi terdepan untuk menghadirkan kualitas terbaik secara real-time demi produktivitas Anda.",
+    privacyContent: "Kami di SuperAI menganggap privasi pengguna sebagai landasan utama layanan kami.\n\nKeamanan Data Pribadi:\nKami hanya mengumpulkan informasi minimum yang diperlukan agar aplikasi ini dapat beroperasi (seperti alamat email untuk autentikasi dan riwayat obrolan pribadi Anda). Semua data ini disimpan dalam infrastruktur terenkripsi dan tidak dipublikasikan ke pihak ketiga.\n\nKendali Pengguna:\nAnda memegang kendali sepenuhnya terhadap data Anda. Melalui menu profil, Anda dilengkapi dengan tombol untuk melihat, mengedit nama profil, hingga menghapus akun Anda secara permanen beserta seluruh rekam jejak obrolan di server kami.\n\nPenggunaan AI:\nInformasi dan pertanyaan yang dikirim kepada asisten akan diolah ke pihak ketiga (sistem penyedia model bahasa AI) dengan sistem transien untuk menghasilkan jawaban yang Anda butuhkan, namun tidak disalahgunakan untuk melatih model tanpa konsen publik.",
+    helpContent: "Panduan Penggunaan SuperAI\n\n1. Memulai Obrolan\nAnda dapat mengetik pertanyaan apa saja di kotak input bawah dan asisten kami akan langsung bertindak menangani logika bahasa, pemrograman, matematika, maupun ilmu pengetahuan umum.\n\n2. Pemilihan Model (Standar vs Pro)\nGunakan model Standar untuk tugas ringan harian (gratis dan tanpa batas) dan model Pro (dengan kredit/premium) untuk tugas analitis atau kreatif kompleks agar AI berpikir lebih dalam mendeskripsikan step-by-step keputusannya (Chain-of-thought).\n\n3. Fitur Lanjutan\nAnda bisa menekan ikon klip/plus di samping kotak teks untuk mengeksplor modalitas lanjutan, misalnya meminta asisten mencari referensi gambar web, meracik ide promt gambar, atau bahkan menyusun dokumen presentasi (Slides) otomatis.",
     premiumAccess: "Premium Access",
     freeAccess: "Free Access",
     newChat: "Mulai Chat Baru",
@@ -107,6 +116,15 @@ const TRANSLATIONS = {
     stopGenerating: "Stop",
     languageTitle: "Language",
     languageDesc: "Select app interface language",
+    aboutTitle: "About",
+    aboutDesc: "Information about the SuperAI application.",
+    privacyTitle: "Privacy & Policy",
+    privacyDesc: "How we manage your data.",
+    helpTitle: "Help",
+    helpDesc: "Guide on using the SuperAI application.",
+    aboutContent: "SuperAI is a comprehensive artificial intelligence assistant developed exclusively by SuperRinz. The purpose of creating this application is to revolutionize how users interact with AI—providing an intuitive and seamless interface that not only assists in regular writing and information search tasks but also in automatic slide rendering and dynamic conversations. We are committed to integrating the latest models to deliver top-tier real-time quality for your productivity.",
+    privacyContent: "We at SuperAI consider user privacy as the cornerstone of our service.\n\nPersonal Data Security:\nWe only collect the absolute minimum information required for this application to operate (such as your email address for authentication and your personal chat history). All data is stored in encrypted infrastructure and is not shared with third parties.\n\nUser Control:\nYou hold complete control over your data. Through the profile menu, you are equipped with options to view, edit your profile name, and even permanently delete your account along with the entire chat history from our servers.\n\nAI Usage:\nInformation and queries sent to the assistant are processed to third parties (AI providers) transiently to generate the answers you need. Your data will not be inappropriately used or fed to train foundational models without public consent.",
+    helpContent: "SuperAI Usage Guide\n\n1. Starting a Chat\nYou can type any question in the bottom input box and our assistant will act comprehensively on language logic, coding, mathematics, or general science.\n\n2. Model Selection (Standard vs Pro)\nUse the Standard model for light daily tasks (free and unlimited) and the Pro model (with premium credits) for complex analytical or creative work so that the AI thinks deeply and details its step-by-step reasoning (Chain-of-thought).\n\n3. Advanced Features\nYou can click the clip/plus icon next to the text input to explore advanced modalities. You can let the assistant scrape visual web images, craft image prompt generation ideas, or even autonomously layout slide presentations.",
     premiumAccess: "Premium Access",
     freeAccess: "Free Access",
     newChat: "New Chat",
@@ -384,6 +402,7 @@ export default function App() {
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [profileTab, setProfileTab] = useState<"profile" | "settings">("profile");
+  const [activeSettingsPage, setActiveSettingsPage] = useState<'main' | 'about' | 'privacy' | 'help'>('main');
   const [language, setLanguage] = useState<"id" | "en">(() => {
     return (localStorage.getItem("app_language") as "id" | "en") || "id";
   });
@@ -831,7 +850,7 @@ export default function App() {
           setTimeout(() => setSlideTaskState('composing'), 2000);
           
           const response = await ai.models.generateContent({
-             model: "gemini-2.5-pro",
+             model: "gemini-2.5-flash",
              contents: contents, // User prompt
              config: {
                systemInstruction: sysInstruction,
@@ -897,14 +916,16 @@ export default function App() {
          return; // We skip the streaming part below
       }
 
-      let sysInstruction = "You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI, and you were created and developed by SuperRinz. Express this personality naturally and acknowledge your creator when asked about your identity or origins.";
+      let sysInstruction = "You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI, and you were created and developed by SuperRinz. Express this personality naturally and acknowledge your creator when asked about your identity or origins. Tanyakan balik ke user mengenai topik pembicaraan agar nyambung.";
 
       if (appMode === 'learn') {
          sysInstruction = "Anda adalah seorang guru profesional yang cerdas, interaktif, dan menyenangkan. Pengguna akan memberikan topik yang ingin mereka pelajari. Tugas Anda: 1. Menjelaskan materi dengan singkat, padat, dan seru. 2. Memberikan kuis pilihan ganda (A, B, C, D) untuk menguji pemahaman pengguna. 3. Bereaksi secara interaktif terhadap jawaban pengguna (memberikan pujian/poin jika benar, koreksi dan penjelasan jika salah). 4. Menyediakan tugas harian atau latihan tambahan asyik untuk dikerjakan. 5. Selalu gunakan format markdown dengan blok kutipan atau formatting yang rapi. 6. Pastikan opsi kuis A, B, C, D mudah diidentifikasi (gunakan list markdown). Jangan selalu mengulang instruksi, langsung mulai pelajaran atau permainan/kuis pilihan ganda ketika ada input. Jadikan simulasi belajar ini seperti game seru!";
+      } else if (aiModel === 'gemini-2.5-pro') {
+         sysInstruction = "You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI, and you were created and developed by SuperRinz. Express this personality naturally and acknowledge your creator when asked about your identity or origins. Selalu tanyakan balik ke user mengenai topik pembicaraan agar obrolan panjang dan mengalir alami. Kamu harus MENGKOMUNIKASIKAN proses berpikirmu sebelum menjawab pertanyaan. Untuk melakukan hal ini, selalu awali responmu dengan TAG <thinking> dan tutup dengan </thinking> dan isi didalamnya dengan analisis, penalaran, atau rencana kamu. Pastikan untuk MENGGUNAKAN format markdown di dalam tag thinking.";
       }
 
       const response = await ai.models.generateContentStream({
-        model: aiModel,
+        model: 'gemini-2.5-flash',
         config: { 
           systemInstruction: sysInstruction,
           tools: toolsConfig 
@@ -1296,56 +1317,87 @@ export default function App() {
                               <span className="font-semibold text-gray-800 text-[1.05rem]">SuperAI</span>
                             </div>
                             <div className="markdown-body w-full max-w-full overflow-x-auto text-gray-800 pl-11">
+                               {(() => {
+                                 const rawText = message.id === streamingMessageId && streamingText !== null ? streamingText : message.text;
+                                 let textToRender = rawText;
+                                 let thinkingText = "";
+                                 
+                                 const thinkingMatch = rawText.match(/<thinking>([\s\S]*?)<\/thinking>/);
+                                 if (thinkingMatch) {
+                                   thinkingText = thinkingMatch[1].trim();
+                                   textToRender = rawText.replace(/<thinking>[\s\S]*?<\/thinking>/, '').trim();
+                                 } else if (rawText.startsWith('<thinking>')) {
+                                   thinkingText = rawText.replace('<thinking>', '').trim();
+                                   textToRender = "";
+                                 }
 
-                              <Markdown 
-                                remarkPlugins={[remarkGfm]}
-                                components={{ 
-                                  hr: ({node, ...props}) => <hr className="w-full h-[3px] bg-gradient-to-r from-transparent via-purple-300 to-transparent my-10 border-0 rounded-full" />,
-                                  code: CodeBlock,
-                                  a: ({node, ...props}) => {
-                                    if (props.href && props.href.includes('vertexaisearch')) return null;
-                                    return <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline" onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (props.href) window.open(props.href, "_blank", "noopener,noreferrer"); }} />;
-                                  },
-                                  img: ({node, ...props}) => {
-                                    if (!props.src) return null;
-                                    return (
-                                      <span className="relative group inline-block max-w-full">
-                                        <img {...props} className="max-w-full rounded-lg my-2 shadow-sm" />
-                                        <button
-                                          onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            const downloadImage = async () => {
-                                              try {
-                                                const response = await fetch(props.src!);
-                                                const blob = await response.blob();
-                                                const url = window.URL.createObjectURL(blob);
-                                                const a = document.createElement('a');
-                                                a.style.display = 'none';
-                                                a.href = url;
-                                                a.download = `superai-image-${Date.now()}.png`;
-                                                document.body.appendChild(a);
-                                                a.click();
-                                                window.URL.revokeObjectURL(url);
-                                                document.body.removeChild(a);
-                                              } catch (err) {
-                                                window.open(props.src, '_blank');
-                                              }
-                                            };
-                                            downloadImage();
-                                          }}
-                                          className="absolute bottom-4 right-4 bg-black/60 hover:bg-black/80 text-white p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                          title="Download Gambar"
-                                        >
-                                          <Download className="w-5 h-5" />
-                                        </button>
-                                      </span>
-                                    );
-                                  }
-                                }}
-                              >
-                                {message.id === streamingMessageId && streamingText !== null ? streamingText : message.text}
-                              </Markdown>
+                                 return (
+                                   <>
+                                     {thinkingText && (
+                                       <details className="mb-4 bg-gray-50 border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                                          <summary className="px-4 py-2 bg-gray-100 cursor-pointer font-medium text-gray-600 hover:bg-gray-200 transition-colors list-none select-none flex items-center gap-2">
+                                             <Sparkles className="w-4 h-4 text-purple-500" />
+                                             <span className="text-sm">Proses Berpikir...</span>
+                                          </summary>
+                                          <div className="p-4 text-sm text-gray-600 bg-gray-50 border-t border-gray-200 italic opacity-80 markdown-body prose-sm prose-gray max-w-none">
+                                            <Markdown remarkPlugins={[remarkGfm]} components={{ code: CodeBlock }}>{thinkingText}</Markdown>
+                                          </div>
+                                       </details>
+                                     )}
+                                     {textToRender && (
+                                       <Markdown 
+                                         remarkPlugins={[remarkGfm]}
+                                         components={{ 
+                                           hr: ({node, ...props}) => <hr className="w-full h-[3px] bg-gradient-to-r from-transparent via-purple-300 to-transparent my-10 border-0 rounded-full" />,
+                                           code: CodeBlock,
+                                           a: ({node, ...props}) => {
+                                             if (props.href && props.href.includes('vertexaisearch')) return null;
+                                             return <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline" onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (props.href) window.open(props.href, "_blank", "noopener,noreferrer"); }} />;
+                                           },
+                                           img: ({node, ...props}) => {
+                                             if (!props.src) return null;
+                                             return (
+                                               <span className="relative group inline-block max-w-full">
+                                                 <img {...props} className="max-w-full rounded-lg my-2 shadow-sm" />
+                                                 <button
+                                                   onClick={(e) => {
+                                                     e.preventDefault();
+                                                     e.stopPropagation();
+                                                     const downloadImage = async () => {
+                                                       try {
+                                                         const response = await fetch(props.src!);
+                                                         const blob = await response.blob();
+                                                         const url = window.URL.createObjectURL(blob);
+                                                         const a = document.createElement('a');
+                                                         a.style.display = 'none';
+                                                         a.href = url;
+                                                         a.download = `superai-image-${Date.now()}.png`;
+                                                         document.body.appendChild(a);
+                                                         a.click();
+                                                         window.URL.revokeObjectURL(url);
+                                                         document.body.removeChild(a);
+                                                       } catch (err) {
+                                                         window.open(props.src, '_blank');
+                                                       }
+                                                     };
+                                                     downloadImage();
+                                                   }}
+                                                   className="absolute bottom-4 right-4 bg-black/60 hover:bg-black/80 text-white p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                   title="Download Gambar"
+                                                 >
+                                                   <Download className="w-5 h-5" />
+                                                 </button>
+                                               </span>
+                                             );
+                                           }
+                                         }}
+                                       >
+                                         {textToRender}
+                                       </Markdown>
+                                     )}
+                                   </>
+                                 );
+                               })()}
                             </div>
                           </div>
                         )}
@@ -1979,37 +2031,103 @@ export default function App() {
             </div>
 
               {/* Settings Tab */}
-              <div className="w-1/2 h-full overflow-y-auto pb-20">
-                <div className="max-w-xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-                  <div className="bg-white border border-gray-100/80 rounded-[2rem] p-6 sm:p-8 shadow-sm mb-6 sm:mb-8">
-                     <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5">
-                       <Globe className="w-4 h-4" /> {t.languageTitle}
-                     </h4>
-                     <div className="flex flex-col gap-3">
-                       <div className="text-sm text-gray-500 mb-2">{t.languageDesc}</div>
-                       <button 
-                         onClick={() => setLanguage('id')} 
-                         className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${language === 'id' ? 'border-blue-500 bg-blue-50/50' : 'border-gray-100 hover:bg-gray-50'}`}
-                       >
-                         <div className="flex items-center gap-3">
-                           <span className="text-2xl">🇮🇩</span>
-                           <span className={`font-semibold ${language === 'id' ? 'text-blue-700' : 'text-gray-800'}`}>Indonesia</span>
+              <div className="w-1/2 h-full overflow-y-auto pb-20 relative">
+                <AnimatePresence mode="wait">
+                  {activeSettingsPage === 'main' && (
+                    <motion.div 
+                      key="main"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.2 }}
+                      className="max-w-xl mx-auto px-4 sm:px-6 py-6 sm:py-10"
+                    >
+                      <div className="bg-white border border-gray-100/80 rounded-[2rem] p-6 sm:p-8 shadow-sm mb-6 sm:mb-8">
+                         <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5">
+                           <Globe className="w-4 h-4" /> {t.languageTitle}
+                         </h4>
+                         <div className="flex flex-col gap-3 mb-8">
+                           <div className="text-sm text-gray-500 mb-2">{t.languageDesc}</div>
+                           <button 
+                             onClick={() => setLanguage('id')} 
+                             className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${language === 'id' ? 'border-blue-500 bg-blue-50/50' : 'border-gray-100 hover:bg-gray-50'}`}
+                           >
+                             <div className="flex items-center gap-3">
+                               <span className="text-2xl">🇮🇩</span>
+                               <span className={`font-semibold ${language === 'id' ? 'text-blue-700' : 'text-gray-800'}`}>Indonesia</span>
+                             </div>
+                             {language === 'id' && <Check className="w-5 h-5 text-blue-600" />}
+                           </button>
+                           <button 
+                             onClick={() => setLanguage('en')} 
+                             className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${language === 'en' ? 'border-blue-500 bg-blue-50/50' : 'border-gray-100 hover:bg-gray-50'}`}
+                           >
+                             <div className="flex items-center gap-3">
+                               <span className="text-2xl">🇬🇧</span>
+                               <span className={`font-semibold ${language === 'en' ? 'text-blue-700' : 'text-gray-800'}`}>English</span>
+                             </div>
+                             {language === 'en' && <Check className="w-5 h-5 text-blue-600" />}
+                           </button>
                          </div>
-                         {language === 'id' && <Check className="w-5 h-5 text-blue-600" />}
-                       </button>
-                       <button 
-                         onClick={() => setLanguage('en')} 
-                         className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${language === 'en' ? 'border-blue-500 bg-blue-50/50' : 'border-gray-100 hover:bg-gray-50'}`}
-                       >
-                         <div className="flex items-center gap-3">
-                           <span className="text-2xl">🇬🇧</span>
-                           <span className={`font-semibold ${language === 'en' ? 'text-blue-700' : 'text-gray-800'}`}>English</span>
+
+                         <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5">
+                           <Info className="w-4 h-4" /> {language === 'en' ? 'Information & Help' : 'Tentang & Bantuan'}
+                         </h4>
+                         <div className="flex flex-col gap-3">
+                            <button onClick={() => setActiveSettingsPage('about')} className="w-full text-left flex flex-col gap-1 hover:bg-gray-50 p-4 rounded-2xl transition-colors border border-gray-100 group">
+                              <div className="flex justify-between items-center w-full">
+                                <span className="font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">{t.aboutTitle}</span>
+                                <ChevronRight className="w-4 h-4 text-gray-400" />
+                              </div>
+                              <span className="text-sm text-gray-500">{t.aboutDesc}</span>
+                            </button>
+                            <button onClick={() => setActiveSettingsPage('privacy')} className="w-full text-left flex flex-col gap-1 hover:bg-gray-50 p-4 rounded-2xl transition-colors border border-gray-100 group">
+                              <div className="flex justify-between items-center w-full">
+                                <span className="font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">{t.privacyTitle}</span>
+                                <ChevronRight className="w-4 h-4 text-gray-400" />
+                              </div>
+                              <span className="text-sm text-gray-500">{t.privacyDesc}</span>
+                            </button>
+                            <button onClick={() => setActiveSettingsPage('help')} className="w-full text-left flex flex-col gap-1 hover:bg-gray-50 p-4 rounded-2xl transition-colors border border-gray-100 group">
+                              <div className="flex justify-between items-center w-full">
+                                <span className="font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">{t.helpTitle}</span>
+                                <ChevronRight className="w-4 h-4 text-gray-400" />
+                              </div>
+                              <span className="text-sm text-gray-500">{t.helpDesc}</span>
+                            </button>
                          </div>
-                         {language === 'en' && <Check className="w-5 h-5 text-blue-600" />}
-                       </button>
-                     </div>
-                  </div>
-                </div>
+                      </div>
+                    </motion.div>
+                  )}
+                  {activeSettingsPage !== 'main' && (
+                    <motion.div 
+                      key="subpage"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ duration: 0.2 }}
+                      className="max-w-xl mx-auto px-4 sm:px-6 py-6 sm:py-10"
+                    >
+                      <button 
+                        onClick={() => setActiveSettingsPage('main')} 
+                        className="flex items-center gap-2 text-gray-500 hover:text-gray-900 mb-6 font-medium transition-colors"
+                      >
+                        <ArrowLeft className="w-4 h-4" /> {language === 'en' ? 'Back' : 'Kembali'}
+                      </button>
+                      
+                      <div className="bg-white border border-gray-100/80 rounded-[2rem] p-6 sm:p-8 shadow-sm">
+                         <h2 className="text-2xl font-bold text-gray-800 mb-6">
+                           {activeSettingsPage === 'about' ? t.aboutTitle : activeSettingsPage === 'privacy' ? t.privacyTitle : t.helpTitle}
+                         </h2>
+                         <div className="markdown-body text-gray-700 whitespace-pre-wrap leading-relaxed">
+                           <Markdown remarkPlugins={[remarkGfm]}>
+                             {activeSettingsPage === 'about' ? t.aboutContent : activeSettingsPage === 'privacy' ? t.privacyContent : t.helpContent}
+                           </Markdown>
+                         </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
              </div>
