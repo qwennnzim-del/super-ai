@@ -1,6 +1,6 @@
 {
   "name": "SuperAI Chatbot",
   "description": "A minimalist, responsive chatbot interface inspired by the provided design.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["geolocation"],
   "majorCapabilities": []
 }

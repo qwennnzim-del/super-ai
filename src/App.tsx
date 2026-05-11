@@ -387,6 +387,7 @@ export default function App() {
   const [streamingText, setStreamingText] = useState<string | null>(null);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [loadingText, setLoadingText] = useState("Berfikir...");
   const [pendingMediaTask, setPendingMediaTask] = useState<'generate_image' | 'search_image' | null>(null);
   const [appMode, setAppMode] = useState<"chat" | "generate_image" | "search_image" | "learn" | "slide">("chat");
   const [slideCount, setSlideCount] = useState<number>(5);
@@ -721,13 +722,60 @@ export default function App() {
       }
       contents.push({ role: "user", parts: newParts });
 
-      const shouldSearch = /cari|carikan|hari ini|saat ini|sekarang|berita|siapa|apa itu|cuaca/i.test(newMessageText);
-      setIsSearching(shouldSearch && appMode === 'chat');
-      const toolsConfig = shouldSearch ? [{ googleSearch: {} }] : undefined;
+      let toolsConfig: any = undefined;
+      let locationContext = "";
+      const isMapRequest = /rute|lokasi|peta|maps|dimana|jarak|tempat/i.test(newMessageText);
+      const isCalendarRequest = /jadwal|kalender|calendar|acara|event|ingatkan/i.test(newMessageText);
+      const isTimeRequest = /jam berapa|waktu|hari apa|tanggal|jam|sekarang/i.test(newMessageText);
+      const isWeatherRequest = /cuaca|suhu|hujan|panas|cerah|mendung|iklim/i.test(newMessageText);
+      const shouldSearch = /cari|carikan|hari ini|saat ini|sekarang|berita|siapa|apa itu|cuaca|rute|lokasi|peta|maps|dimana|jarak|tempat|jadwal|kalender|calendar|acara|event|ingatkan|jam|waktu|tanggal|suhu|hujan|panas/i.test(newMessageText);
+
+      if (shouldSearch && appMode === 'chat') {
+          setIsSearching(true);
+          setLoadingText("Berfikir...");
+          setTimeout(() => setLoadingText("Menghubungkan ke Google..."), 1000);
+          
+          toolsConfig = [{ googleSearch: {} }];
+          if (isMapRequest) {
+              setTimeout(() => setLoadingText("Menghubungkan ke Google Maps..."), 2500);
+              const mapInstruction = `[SISTEM TAMPILAN PETA: Pengguna menanyakan lokasi/peta. Anda **WAJIB** menyertakan satu blok kode JSON di akhir pesan Anda dengan koordinat lokasi yang tepat agar sistem dapat merender peta interaktif. Formatnya HARUS persis seperti berikut ini (dalam markdown code block):\n\`\`\`json\n{ "type": "map", "lat": <latitude>, "lng": <longitude>, "title": "Nama Tempat", "zoom": 15 }\n\`\`\`\nPastikan koordinat lat dan lng AKURAT berdasarkan pertanyaan pengguna atau lokasi terdekat. Jangan berikan teks sebelum atau sesudah blok \`\`\`json ini yang bukan bagian dari jawaban. Anda harus merespon dengan penjelasan terlebih dahulu, lalu diakhiri dengan blok JSON ini.]\n\n`;
+              try {
+                  const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                      navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
+                  });
+                  locationContext = `[SISTEM: Pengguna saat ini berada di Latitude ${position.coords.latitude}, Longitude ${position.coords.longitude}. Gunakan lokasi ini dalam pencarian area sekitar atau navigasi Anda jika relevan.]\n\n` + mapInstruction;
+              } catch (e) {
+                  console.warn("Geolocation denied or unavailable", e);
+                  locationContext = mapInstruction;
+              }
+          } else if (isCalendarRequest) {
+              setTimeout(() => setLoadingText("Menghubungkan ke Google Calendar..."), 2500);
+              const now = new Date();
+              const dateContext = `[SISTEM TANGGAL: Saat ini adalah ${now.toLocaleString('id-ID', { timeZoneName: 'short' })}]\n\n`;
+              const calInstruction = `[SISTEM GOOGLE CALENDAR: Pengguna ingin membuat pengingat/jadwal/acara. Anda **WAJIB** menyertakan satu blok kode JSON di akhir pesan Anda yang berisi detail acara agar sistem dapat merender tombol interaktif "Tambahkan ke Kalender". Formatnya HARUS persis seperti berikut ini (dalam markdown code block):\n\`\`\`json\n{ "type": "calendar", "title": "Nama Acara", "details": "Deskripsi singkat", "location": "Lokasi acara (opsional)", "date": "YYYYMMDDTHHMMSSZ/YYYYMMDDTHHMMSSZ" }\n\`\`\`\nGunakan tanggal dan waktu yang sesuai dengan permintaan pengguna dalam format UTC khusus Google Calendar (\`YYYYMMDDTHHMMSSZ/YYYYMMDDTHHMMSSZ\`, start/end time). Jangan berikan teks sebelum atau sesudah blok \`\`\`json ini yang bukan bagian dari jawaban. Anda harus merespon dengan penjelasan terlebih dahulu, lalu diakhiri dengan blok JSON ini.]\n\n`;
+              locationContext = dateContext + calInstruction;
+          } else if (isWeatherRequest) {
+              setTimeout(() => setLoadingText("Mengecek Info Cuaca..."), 2500);
+              const weatherInstruction = `[SISTEM INFO CUACA: Pengguna menanyakan cuaca. Anda **WAJIB** menampilkan JSON blok untuk widget cuaca. Formatnya:\n\`\`\`json\n{ "type": "weather", "city": "Nama Kota", "temp": "28", "condition": "Kondisi cuaca", "humidity": "75" }\n\`\`\`\nJangan berikan teks JSON ini di luar code block. Berikan penjelasan text biasa terlebih dahulu.]\n\n`;
+              try {
+                  const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                      navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
+                  });
+                  locationContext = `[SISTEM: Lokasi pengguna saat ini - Latitude ${position.coords.latitude}, Longitude ${position.coords.longitude}.]\n\n` + weatherInstruction;
+              } catch (e) {
+                  locationContext = weatherInstruction;
+              }
+          } else if (isTimeRequest) {
+              setTimeout(() => setLoadingText("Mengecek Waktu Real Time..."), 2500);
+              const now = new Date();
+              const timeContext = `[SISTEM WAKTU REAL-TIME: Saat ini adalah jam ${now.toLocaleTimeString('id-ID')} pada tanggal ${now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}, Zona Waktu: ${now.toLocaleDateString('id-ID', { timeZoneName: 'long' }).split(' ').pop()}]. Beritahukan informasi ini kepada pengguna dengan ramah.]\n\n`;
+              const timeInstruction = `[SISTEM WIDGET WAKTU: Pengguna menanyakan waktu. Anda **WAJIB** menampilkan JSON blok untuk widget waktu di akhir pesan. Formatnya:\n\`\`\`json\n{ "type": "time", "time": "${now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}", "date": "${now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}", "timezone": "WIB/WITA/WIT/GMT" }\n\`\`\`\n]\n\n`;
+              locationContext = timeContext + timeInstruction;
+          }
+      }
 
       if (appMode === 'generate_image') {
          try {
-           setIsSearching(false);
            setPendingMediaTask('generate_image');
            
            // Ask Gemini to enhance the prompt
@@ -767,7 +815,6 @@ export default function App() {
          }
       } else if (appMode === 'search_image') {
          try {
-           setIsSearching(false);
            setPendingMediaTask('search_image'); // Re-use the shimmering loader
            
            const serperKey = (import.meta as any).env.VITE_SERPER_API_KEY;
@@ -831,7 +878,6 @@ export default function App() {
 
       if (appMode === 'slide') {
          try {
-           setIsSearching(false);
            setSlideTaskState('outline');
            
            let sysInstruction = `Anda adalah pembuat presentasi JSON. Buat presentasi dengan TEGAS tepat ${slideCount} slide. Output HANYA MERUPAKAN JSON JAWABAN VALID dengan format:
@@ -916,12 +962,12 @@ export default function App() {
          return; // We skip the streaming part below
       }
 
-      let sysInstruction = "You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI, and you were created and developed by SuperRinz. Express this personality naturally and acknowledge your creator when asked about your identity or origins. Tanyakan balik ke user mengenai topik pembicaraan agar nyambung.";
+      let sysInstruction = locationContext + "You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI, and you were created and developed by SuperRinz. Express this personality naturally and acknowledge your creator when asked about your identity or origins. Tanyakan balik ke user mengenai topik pembicaraan agar nyambung.";
 
       if (appMode === 'learn') {
-         sysInstruction = "Anda adalah seorang guru profesional yang cerdas, interaktif, dan menyenangkan. Pengguna akan memberikan topik yang ingin mereka pelajari. Tugas Anda: 1. Menjelaskan materi dengan singkat, padat, dan seru. 2. Memberikan kuis pilihan ganda (A, B, C, D) untuk menguji pemahaman pengguna. 3. Bereaksi secara interaktif terhadap jawaban pengguna (memberikan pujian/poin jika benar, koreksi dan penjelasan jika salah). 4. Menyediakan tugas harian atau latihan tambahan asyik untuk dikerjakan. 5. Selalu gunakan format markdown dengan blok kutipan atau formatting yang rapi. 6. Pastikan opsi kuis A, B, C, D mudah diidentifikasi (gunakan list markdown). Jangan selalu mengulang instruksi, langsung mulai pelajaran atau permainan/kuis pilihan ganda ketika ada input. Jadikan simulasi belajar ini seperti game seru!";
+         sysInstruction = locationContext + "Anda adalah seorang guru profesional yang cerdas, interaktif, dan menyenangkan. Pengguna akan memberikan topik yang ingin mereka pelajari. Tugas Anda: 1. Menjelaskan materi dengan singkat, padat, dan seru. 2. Memberikan kuis pilihan ganda (A, B, C, D) untuk menguji pemahaman pengguna. 3. Bereaksi secara interaktif terhadap jawaban pengguna (memberikan pujian/poin jika benar, koreksi dan penjelasan jika salah). 4. Menyediakan tugas harian atau latihan tambahan asyik untuk dikerjakan. 5. Selalu gunakan format markdown dengan blok kutipan atau formatting yang rapi. 6. Pastikan opsi kuis A, B, C, D mudah diidentifikasi (gunakan list markdown). Jangan selalu mengulang instruksi, langsung mulai pelajaran atau permainan/kuis pilihan ganda ketika ada input. Jadikan simulasi belajar ini seperti game seru!";
       } else if (aiModel === 'gemini-2.5-pro') {
-         sysInstruction = "You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI, and you were created and developed by SuperRinz. Express this personality naturally and acknowledge your creator when asked about your identity or origins. Selalu tanyakan balik ke user mengenai topik pembicaraan agar obrolan panjang dan mengalir alami. Kamu harus MENGKOMUNIKASIKAN proses berpikirmu sebelum menjawab pertanyaan. Untuk melakukan hal ini, selalu awali responmu dengan TAG <thinking> dan tutup dengan </thinking> dan isi didalamnya dengan analisis, penalaran, atau rencana kamu. Pastikan untuk MENGGUNAKAN format markdown di dalam tag thinking.";
+         sysInstruction = locationContext + "You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI, and you were created and developed by SuperRinz. Express this personality naturally and acknowledge your creator when asked about your identity or origins. Selalu tanyakan balik ke user mengenai topik pembicaraan agar obrolan panjang dan mengalir alami. Kamu harus MENGKOMUNIKASIKAN proses berpikirmu sebelum menjawab pertanyaan. Untuk melakukan hal ini, selalu awali responmu dengan TAG <thinking> dan tutup dengan </thinking> dan isi didalamnya dengan analisis, penalaran, atau rencana kamu. Pastikan untuk MENGGUNAKAN format markdown di dalam tag thinking.";
       }
 
       const response = await ai.models.generateContentStream({
@@ -1258,7 +1304,7 @@ export default function App() {
                                )}
                              </div>
                              <span className={`text-[0.95rem] font-medium tracking-wide animate-pulse ${isSearching ? 'bg-clip-text text-transparent bg-gradient-to-r from-[#4285F4] via-[#EA4335] via-[#FBBC05] to-[#34A853]' : 'text-gray-500'}`}>
-                                {isSearching ? 'Menghubungkan ke Google...' : 'Berfikir...'}
+                                {isSearching ? loadingText : 'Berfikir...'}
                              </span>
                            </div>
                         ) : message.slideData ? (
@@ -1331,6 +1377,46 @@ export default function App() {
                                    textToRender = "";
                                  }
 
+                                 const mapRegex = /```(?:json)?\s*(\{\s*"type"\s*:\s*"map"[\s\S]*?\})\s*```/i;
+                                 const mapDataMatch = textToRender.match(mapRegex);
+                                 let parsedMapData: any = null;
+                                 if (mapDataMatch) {
+                                   try {
+                                     parsedMapData = JSON.parse(mapDataMatch[1]);
+                                     textToRender = textToRender.replace(mapRegex, "").trim();
+                                   } catch(e) {}
+                                 }
+
+                                 const calRegex = /```(?:json)?\s*(\{\s*"type"\s*:\s*"calendar"[\s\S]*?\})\s*```/i;
+                                 const calDataMatch = textToRender.match(calRegex);
+                                 let parsedCalData: any = null;
+                                 if (calDataMatch) {
+                                   try {
+                                     parsedCalData = JSON.parse(calDataMatch[1]);
+                                     textToRender = textToRender.replace(calRegex, "").trim();
+                                   } catch(e) {}
+                                 }
+
+                                 const weatherRegex = /```(?:json)?\s*(\{\s*"type"\s*:\s*"weather"[\s\S]*?\})\s*```/i;
+                                 const weatherDataMatch = textToRender.match(weatherRegex);
+                                 let parsedWeatherData: any = null;
+                                 if (weatherDataMatch) {
+                                   try {
+                                     parsedWeatherData = JSON.parse(weatherDataMatch[1]);
+                                     textToRender = textToRender.replace(weatherRegex, "").trim();
+                                   } catch(e) {}
+                                 }
+
+                                 const timeRegex = /```(?:json)?\s*(\{\s*"type"\s*:\s*"time"[\s\S]*?\})\s*```/i;
+                                 const timeDataMatch = textToRender.match(timeRegex);
+                                 let parsedTimeData: any = null;
+                                 if (timeDataMatch) {
+                                   try {
+                                     parsedTimeData = JSON.parse(timeDataMatch[1]);
+                                     textToRender = textToRender.replace(timeRegex, "").trim();
+                                   } catch(e) {}
+                                 }
+
                                  return (
                                    <>
                                      {thinkingText && (
@@ -1343,6 +1429,57 @@ export default function App() {
                                             <Markdown remarkPlugins={[remarkGfm]} components={{ code: CodeBlock }}>{thinkingText}</Markdown>
                                           </div>
                                        </details>
+                                     )}
+                                     {parsedMapData && (
+                                        <div className="mb-4 rounded-xl overflow-hidden shadow-sm border border-gray-200" style={{ width: '100%', maxWidth: '600px', height: '300px' }}>
+                                           <iframe
+                                             width="100%"
+                                             height="100%"
+                                             style={{ border: 0 }}
+                                             loading="lazy"
+                                             allowFullScreen
+                                             referrerPolicy="no-referrer-when-downgrade"
+                                             src={`https://maps.google.com/maps?q=${parsedMapData.lat},${parsedMapData.lng}&hl=id&z=${parsedMapData.zoom || 15}&output=embed`}
+                                           ></iframe>
+                                        </div>
+                                     )}
+                                     {parsedCalData && (
+                                        <div className="mb-4 p-4 border border-blue-200 bg-blue-50 rounded-xl max-w-sm flex flex-col gap-2 shadow-sm">
+                                           <div className="font-semibold text-blue-800">{parsedCalData.title}</div>
+                                           <div className="text-sm text-blue-700 font-medium">📅 {parsedCalData.date?.split('T')[0] || "Acara Terjadwal"}</div>
+                                           {parsedCalData.location && <div className="text-sm text-blue-600">{parsedCalData.location}</div>}
+                                           <a 
+                                             href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(parsedCalData.title)}&dates=${parsedCalData.date}&details=${encodeURIComponent(parsedCalData.details || '')}&location=${encodeURIComponent(parsedCalData.location || '')}`}
+                                             target="_blank"
+                                             rel="noopener noreferrer"
+                                             className="mt-2 text-center text-sm font-medium bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                                           >
+                                              Tambahkan ke Google Calendar
+                                           </a>
+                                        </div>
+                                     )}
+                                     {parsedWeatherData && (
+                                        <div className="mb-4 p-5 rounded-2xl max-w-sm text-white shadow-lg overflow-hidden relative bg-gradient-to-br from-blue-400 to-blue-600">
+                                            <div className="absolute top-0 right-0 -mr-8 -mt-8 opacity-20">
+                                                <svg width="150" height="150" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                                   <path d="M6.012 18H21V16H6.012C5.55 16 5.147 15.694 5.027 15.244L3.102 8H17V6H2.56L4.973 15.044C5.168 15.782 5.827 16 6.012 16Z"/>
+                                                   <path d="M12 14c2.206 0 4-1.794 4-4s-1.794-4-4-4S8 7.794 8 10s1.794 4 4 4zm0-6c1.103 0 2 .897 2 2s-.897 2-2 2-2-.897-2-2 .897-2 2-2z"/>
+                                                </svg>
+                                            </div>
+                                            <div className="relative z-10 flex flex-col gap-1">
+                                                <div className="text-lg font-medium opacity-90">{parsedWeatherData.city}</div>
+                                                <div className="text-5xl font-bold tracking-tighter my-1">{parsedWeatherData.temp}°C</div>
+                                                <div className="text-lg font-medium">{parsedWeatherData.condition}</div>
+                                                {parsedWeatherData.humidity && <div className="text-sm opacity-80 mt-2">Kelembapan: {parsedWeatherData.humidity}</div>}
+                                            </div>
+                                        </div>
+                                     )}
+                                     {parsedTimeData && (
+                                        <div className="mb-4 p-6 border border-gray-200 bg-white rounded-2xl max-w-sm flex flex-col items-center justify-center gap-1 shadow-sm">
+                                            <div className="text-5xl font-mono tracking-tight font-bold text-gray-800">{parsedTimeData.time}</div>
+                                            <div className="text-md font-medium text-gray-500">{parsedTimeData.date}</div>
+                                            <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mt-1">{parsedTimeData.timezone}</div>
+                                        </div>
                                      )}
                                      {textToRender && (
                                        <Markdown 
@@ -1638,7 +1775,7 @@ export default function App() {
                              )}
                           </div>
                           <span className={`text-[0.95rem] font-medium tracking-wide animate-pulse ${isSearching ? 'bg-clip-text text-transparent bg-gradient-to-r from-[#4285F4] via-[#EA4335] via-[#FBBC05] to-[#34A853]' : 'text-gray-500'}`}>
-                            {isSearching ? 'Menghubungkan ke Google...' : 'Berfikir...'}
+                            {isSearching ? loadingText : 'Berfikir...'}
                           </span>
                        </div>
                      )}
