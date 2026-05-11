@@ -1430,57 +1430,6 @@ export default function App() {
                                           </div>
                                        </details>
                                      )}
-                                     {parsedMapData && (
-                                        <div className="mb-4 rounded-xl overflow-hidden shadow-sm border border-gray-200" style={{ width: '100%', maxWidth: '600px', height: '300px' }}>
-                                           <iframe
-                                             width="100%"
-                                             height="100%"
-                                             style={{ border: 0 }}
-                                             loading="lazy"
-                                             allowFullScreen
-                                             referrerPolicy="no-referrer-when-downgrade"
-                                             src={`https://maps.google.com/maps?q=${parsedMapData.lat},${parsedMapData.lng}&hl=id&z=${parsedMapData.zoom || 15}&output=embed`}
-                                           ></iframe>
-                                        </div>
-                                     )}
-                                     {parsedCalData && (
-                                        <div className="mb-4 p-4 border border-blue-200 bg-blue-50 rounded-xl max-w-sm flex flex-col gap-2 shadow-sm">
-                                           <div className="font-semibold text-blue-800">{parsedCalData.title}</div>
-                                           <div className="text-sm text-blue-700 font-medium">📅 {parsedCalData.date?.split('T')[0] || "Acara Terjadwal"}</div>
-                                           {parsedCalData.location && <div className="text-sm text-blue-600">{parsedCalData.location}</div>}
-                                           <a 
-                                             href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(parsedCalData.title)}&dates=${parsedCalData.date}&details=${encodeURIComponent(parsedCalData.details || '')}&location=${encodeURIComponent(parsedCalData.location || '')}`}
-                                             target="_blank"
-                                             rel="noopener noreferrer"
-                                             className="mt-2 text-center text-sm font-medium bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
-                                           >
-                                              Tambahkan ke Google Calendar
-                                           </a>
-                                        </div>
-                                     )}
-                                     {parsedWeatherData && (
-                                        <div className="mb-4 p-5 rounded-2xl max-w-sm text-white shadow-lg overflow-hidden relative bg-gradient-to-br from-blue-400 to-blue-600">
-                                            <div className="absolute top-0 right-0 -mr-8 -mt-8 opacity-20">
-                                                <svg width="150" height="150" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                                                   <path d="M6.012 18H21V16H6.012C5.55 16 5.147 15.694 5.027 15.244L3.102 8H17V6H2.56L4.973 15.044C5.168 15.782 5.827 16 6.012 16Z"/>
-                                                   <path d="M12 14c2.206 0 4-1.794 4-4s-1.794-4-4-4S8 7.794 8 10s1.794 4 4 4zm0-6c1.103 0 2 .897 2 2s-.897 2-2 2-2-.897-2-2 .897-2 2-2z"/>
-                                                </svg>
-                                            </div>
-                                            <div className="relative z-10 flex flex-col gap-1">
-                                                <div className="text-lg font-medium opacity-90">{parsedWeatherData.city}</div>
-                                                <div className="text-5xl font-bold tracking-tighter my-1">{parsedWeatherData.temp}°C</div>
-                                                <div className="text-lg font-medium">{parsedWeatherData.condition}</div>
-                                                {parsedWeatherData.humidity && <div className="text-sm opacity-80 mt-2">Kelembapan: {parsedWeatherData.humidity}</div>}
-                                            </div>
-                                        </div>
-                                     )}
-                                     {parsedTimeData && (
-                                        <div className="mb-4 p-6 border border-gray-200 bg-white rounded-2xl max-w-sm flex flex-col items-center justify-center gap-1 shadow-sm">
-                                            <div className="text-5xl font-mono tracking-tight font-bold text-gray-800">{parsedTimeData.time}</div>
-                                            <div className="text-md font-medium text-gray-500">{parsedTimeData.date}</div>
-                                            <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mt-1">{parsedTimeData.timezone}</div>
-                                        </div>
-                                     )}
                                      {textToRender && (
                                        <Markdown 
                                          remarkPlugins={[remarkGfm]}
@@ -1508,29 +1457,103 @@ export default function App() {
                                                          const a = document.createElement('a');
                                                          a.style.display = 'none';
                                                          a.href = url;
-                                                         a.download = `superai-image-${Date.now()}.png`;
+                                                         a.download = `image-${Date.now()}.png`;
                                                          document.body.appendChild(a);
                                                          a.click();
                                                          window.URL.revokeObjectURL(url);
-                                                         document.body.removeChild(a);
                                                        } catch (err) {
+                                                         console.error('Download failed', err);
                                                          window.open(props.src, '_blank');
                                                        }
                                                      };
                                                      downloadImage();
                                                    }}
-                                                   className="absolute bottom-4 right-4 bg-black/60 hover:bg-black/80 text-white p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                                   title="Download Gambar"
+                                                   className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-black/70 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
+                                                   title="Download Image"
                                                  >
-                                                   <Download className="w-5 h-5" />
+                                                   <Download className="w-4 h-4" />
                                                  </button>
                                                </span>
-                                             );
+                                             )
                                            }
                                          }}
                                        >
                                          {textToRender}
                                        </Markdown>
+                                     )}
+                                     {parsedMapData && (
+                                        <div className="mb-4 rounded-xl overflow-hidden shadow-sm border border-gray-200" style={{ width: '100%', maxWidth: '600px', height: '300px' }}>
+                                           <iframe
+                                             width="100%"
+                                             height="100%"
+                                             style={{ border: 0 }}
+                                             loading="lazy"
+                                             allowFullScreen
+                                             referrerPolicy="no-referrer-when-downgrade"
+                                             src={`https://maps.google.com/maps?q=${parsedMapData.lat},${parsedMapData.lng}&hl=id&z=${parsedMapData.zoom || 15}&output=embed`}
+                                           ></iframe>
+                                        </div>
+                                     )}
+                                     {parsedCalData && (
+                                        <div className="mb-4 p-4 border border-blue-200 bg-blue-50 rounded-xl max-w-sm flex flex-col gap-2 shadow-sm">
+                                           <div className="font-semibold text-blue-800">{parsedCalData.title}</div>
+                                           <div className="text-sm text-blue-700 font-medium">📅 {parsedCalData.date?.split('T')[0] || "Acara Terjadwal"}</div>
+                                           {parsedCalData.location && <div className="text-sm text-blue-600">{parsedCalData.location}</div>}
+                                           <div className="flex flex-col gap-2 mt-2">
+                                             <a 
+                                               href={`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(parsedCalData.title)}&dates=${parsedCalData.date}&details=${encodeURIComponent(parsedCalData.details || '')}&location=${encodeURIComponent(parsedCalData.location || '')}`}
+                                               target="_blank"
+                                               rel="noopener noreferrer"
+                                               className="text-center text-sm font-medium bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                                             >
+                                                Buka di Google Calendar
+                                             </a>
+                                             <button
+                                              onClick={(e) => {
+                                                e.preventDefault();
+                                                const dates = parsedCalData.date?.split('/') || [];
+                                                const start = dates[0] || '';
+                                                const end = dates[1] || start;
+                                                const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//SuperAI//ID\nBEGIN:VEVENT\nDTSTART:${start}\nDTEND:${end}\nSUMMARY:${parsedCalData.title || 'Acara'}\nDESCRIPTION:${parsedCalData.details || ''}\nLOCATION:${parsedCalData.location || ''}\nEND:VEVENT\nEND:VCALENDAR`;
+                                                const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+                                                const url = window.URL.createObjectURL(blob);
+                                                const a = document.createElement('a');
+                                                a.href = url;
+                                                a.download = `${(parsedCalData.title || 'Acara').replace(/[^a-z0-9]/gi, '_').toLowerCase()}.ics`;
+                                                document.body.appendChild(a);
+                                                a.click();
+                                                document.body.removeChild(a);
+                                                window.URL.revokeObjectURL(url);
+                                              }}
+                                              className="text-center text-sm font-medium bg-white text-blue-700 border border-blue-200 px-4 py-2 rounded-lg hover:bg-blue-50 transition"
+                                             >
+                                                Buka di Kalender Bawaan (Samsung/Apple)
+                                             </button>
+                                           </div>
+                                        </div>
+                                     )}
+                                     {parsedWeatherData && (
+                                        <div className="mb-4 p-5 rounded-2xl max-w-sm text-white shadow-lg overflow-hidden relative bg-gradient-to-br from-blue-400 to-blue-600">
+                                            <div className="absolute top-0 right-0 -mr-8 -mt-8 opacity-20">
+                                                <svg width="150" height="150" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                                   <path d="M6.012 18H21V16H6.012C5.55 16 5.147 15.694 5.027 15.244L3.102 8H17V6H2.56L4.973 15.044C5.168 15.782 5.827 16 6.012 16Z"/>
+                                                   <path d="M12 14c2.206 0 4-1.794 4-4s-1.794-4-4-4S8 7.794 8 10s1.794 4 4 4zm0-6c1.103 0 2 .897 2 2s-.897 2-2 2-2-.897-2-2 .897-2 2-2z"/>
+                                                </svg>
+                                            </div>
+                                            <div className="relative z-10 flex flex-col gap-1">
+                                                <div className="text-lg font-medium opacity-90">{parsedWeatherData.city}</div>
+                                                <div className="text-5xl font-bold tracking-tighter my-1">{parsedWeatherData.temp}°C</div>
+                                                <div className="text-lg font-medium">{parsedWeatherData.condition}</div>
+                                                {parsedWeatherData.humidity && <div className="text-sm opacity-80 mt-2">Kelembapan: {parsedWeatherData.humidity}</div>}
+                                            </div>
+                                        </div>
+                                     )}
+                                     {parsedTimeData && (
+                                        <div className="mb-4 p-6 border border-gray-200 bg-white rounded-2xl max-w-sm flex flex-col items-center justify-center gap-1 shadow-sm">
+                                            <div className="text-5xl font-mono tracking-tight font-bold text-gray-800">{parsedTimeData.time}</div>
+                                            <div className="text-md font-medium text-gray-500">{parsedTimeData.date}</div>
+                                            <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest mt-1">{parsedTimeData.timezone}</div>
+                                        </div>
                                      )}
                                    </>
                                  );
