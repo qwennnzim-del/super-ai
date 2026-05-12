@@ -207,6 +207,7 @@ type Message = {
   attachments?: Attachment[];
   slideData?: any;
   slideMedia?: 'ai' | 'search';
+  sheetData?: any;
 };
 
 type Chat = {
@@ -390,7 +391,7 @@ export default function App() {
   const [loadingText, setLoadingText] = useState("Berfikir...");
   const [loadingIconType, setLoadingIconType] = useState<"none" | "map" | "calendar" | "weather" | "time" | "google">("none");
   const [pendingMediaTask, setPendingMediaTask] = useState<'generate_image' | 'search_image' | null>(null);
-  const [appMode, setAppMode] = useState<"chat" | "generate_image" | "search_image" | "learn" | "slide">("chat");
+  const [appMode, setAppMode] = useState<"chat" | "generate_image" | "search_image" | "learn" | "slide" | "sheet">("chat");
   const [slideCount, setSlideCount] = useState<number>(5);
   const [slideImageMedia, setSlideImageMedia] = useState<'ai' | 'search'>('ai');
   const [slideTaskState, setSlideTaskState] = useState<'idle' | 'outline' | 'composing' | 'rendering' | 'done'>('idle');
@@ -971,6 +972,79 @@ export default function App() {
            setSlideTaskState('idle');
          }
          return; // We skip the streaming part below
+      } else if (appMode === 'sheet') {
+         try {
+           let sysInstruction = `Anda adalah asisten pembuat tabel data. Buatlah data tabel yang diinginkan pengguna dalam format JSON. Output HANYA MERUPAKAN JSON JAWABAN VALID dengan format:
+{
+  "title": "Judul Tabel",
+  "columns": ["Kolom 1", "Kolom 2", "Kolom 3"],
+  "rows": [
+    { "cells": ["Baris 1 Kolom 1", "Baris 1 Kolom 2", "Baris 1 Kolom 3"] },
+    { "cells": ["Baris 2 Kolom 1", "Baris 2 Kolom 2", "Baris 2 Kolom 3"] }
+  ]
+}`;
+
+          setLoadingText("Membuat Sheet...");
+          
+          const response = await ai.models.generateContent({
+             model: "gemini-2.5-flash",
+             contents: contents, // User prompt
+             config: {
+               systemInstruction: sysInstruction,
+               responseMimeType: "application/json"
+             }
+          });
+
+          let sheetDataStr = response.text || "";
+          let sheetDataObj = null;
+          let isValidJson = false;
+          try {
+             const jsonMatch = sheetDataStr.match(/\{[\s\S]*\}/);
+             if (jsonMatch) {
+               sheetDataObj = JSON.parse(jsonMatch[0]);
+             } else {
+               sheetDataObj = JSON.parse(sheetDataStr.replace(/```json/gi, '').replace(/```/g, '').trim());
+             }
+             isValidJson = true;
+          } catch(e) {
+             console.error("Failed to parse sheet JSON", e);
+             sheetDataObj = null;
+          }
+
+          const modelMsgRef = doc(collection(db, `chats/${chatId}/messages`));
+          if (isValidJson && sheetDataObj) {
+            await setDoc(modelMsgRef, {
+               chatId: chatId,
+               userId: user.uid,
+               role: "model",
+               text: "Berikut adalah data tabel yang saya buat untuk Anda.",
+               createdAt: serverTimestamp(),
+               sheetData: sheetDataObj
+            });
+          } else {
+            await setDoc(modelMsgRef, {
+               chatId: chatId,
+               userId: user.uid,
+               role: "model",
+               text: "Maaf, terjadi kesalahan saat membuat tabel. API tidak mengembalikan format yang valid.\n\n```text\n" + sheetDataStr.substring(0, 200) + "...\n```",
+               createdAt: serverTimestamp()
+            });
+          }
+          
+         } catch (error: any) {
+           console.error("Sheet Gen Error:", error);
+           const modelMsgRef = doc(collection(db, `chats/${chatId}/messages`));
+           await setDoc(modelMsgRef, {
+             chatId: chatId,
+             userId: user.uid,
+             role: "model",
+             text: `Maaf, terjadi kesalahan tak terduga:\n\n${error?.message || "Unknown error"}`,
+             createdAt: serverTimestamp()
+           });
+         } finally {
+           setIsLoading(false);
+         }
+         return;
       }
 
       let shouldMentionOrigin = contents.filter(c => c.role === "user").length <= 1; // Only mention in early conversation easily or when asked explicitly
@@ -1294,7 +1368,7 @@ export default function App() {
                              ))}
                           </div>
                         )}
-                        <div className="text-[1.1rem] sm:text-[1.15rem] leading-relaxed text-gray-900 text-right whitespace-pre-wrap font-medium select-text">
+                        <div className="bg-gray-100 text-gray-900 px-5 py-3.5 rounded-3xl rounded-tr-md text-[1.1rem] sm:text-[1.15rem] leading-relaxed text-left whitespace-pre-wrap font-medium select-text max-w-full overflow-hidden shadow-sm border border-gray-200/50">
                           {message.text}
                         </div>
                       </div>
@@ -1340,6 +1414,97 @@ export default function App() {
                                 {loadingText}
                              </span>
                            </div>
+                        ) : message.sheetData ? (
+                          <div className="flex flex-col w-full">
+                            <div className="flex items-center gap-3 mb-2 px-1">
+                              <img src="/logo.png" alt="Logo" className="w-8 h-8 shrink-0 object-contain" />
+                              <span className="font-semibold text-gray-800 text-[1.05rem]">SuperAI</span>
+                            </div>
+                            <div className="pl-11 w-full max-w-full">
+                               <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center gap-4">
+                                  <Table className="w-12 h-12 text-emerald-500" />
+                                  <h3 className="font-semibold text-gray-800 text-lg text-center">{message.sheetData.title || "Data Sheet Anda"}</h3>
+                                  <p className="text-sm text-gray-500 text-center -mt-2 mb-4">{message.sheetData.rows?.length || 0} Baris Data</p>
+                                  
+                                  <div className="w-full overflow-x-auto rounded-xl border border-gray-200">
+                                    <table className="w-full text-sm text-left">
+                                      <thead className="text-xs text-gray-700 bg-gray-50 uppercase">
+                                        <tr>
+                                          {message.sheetData.columns?.map((col: string, i: number) => (
+                                            <th key={i} className="px-6 py-3 font-semibold whitespace-nowrap">{col}</th>
+                                          ))}
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {message.sheetData.rows?.map((rowObj: any, i: number) => (
+                                          <tr key={i} className="bg-white border-b hover:bg-gray-50">
+                                            {rowObj.cells?.map((val: string, j: number) => (
+                                              <td key={j} className="px-6 py-4 whitespace-nowrap">{val}</td>
+                                            ))}
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                  <p className="text-xs text-gray-500 w-full text-left mt-1">
+                                    💡 <span className="font-medium text-gray-600">Tips:</span> Anda bisa klik Download CSV lalu langsung membukanya di Excel/Google Sheets, atau Salin Tabel dan Paste (Ctrl+V / Cmd+V) langsung ke cell pertama di Excel/Sheet Anda.
+                                  </p>
+
+                                  <div className="flex w-full justify-end mt-2 gap-3 flex-wrap">
+                                     <button 
+                                        onClick={() => {
+                                          const tsvContent = message.sheetData.columns.join("\t") + "\n"
+                                              + message.sheetData.rows.map((rowObj: any) => (rowObj.cells || []).join("\t")).join("\n");
+                                          
+                                          if (navigator.clipboard && window.isSecureContext) {
+                                            navigator.clipboard.writeText(tsvContent);
+                                            setCopiedId(message.id + "-table");
+                                            setTimeout(() => setCopiedId(null), 2000);
+                                          } else {
+                                            const textArea = document.createElement("textarea");
+                                            textArea.value = tsvContent;
+                                            textArea.style.position = "absolute";
+                                            textArea.style.left = "-999999px";
+                                            document.body.prepend(textArea);
+                                            textArea.select();
+                                            try {
+                                              document.execCommand('copy');
+                                              setCopiedId(message.id + "-table");
+                                              setTimeout(() => setCopiedId(null), 2000);
+                                            } catch (error) {
+                                              console.error(error);
+                                            } finally {
+                                              textArea.remove();
+                                            }
+                                          }
+                                        }}
+                                        className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-50 font-medium transition-colors w-full sm:w-auto"
+                                     >
+                                        {copiedId === message.id + "-table" ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                                        {copiedId === message.id + "-table" ? "Tersalin!" : "Salin Tabel"}
+                                     </button>
+                                     <button 
+                                        onClick={() => {
+                                          const csvContent = "data:text/csv;charset=utf-8," 
+                                              + message.sheetData.columns.map((e: string) => `"${e.toString().replace(/"/g, '""')}"`).join(",") + "\n"
+                                              + message.sheetData.rows.map((rowObj: any) => (rowObj.cells || []).map((v: any) => `"${(v || '').toString().replace(/"/g, '""')}"`).join(",")).join("\n");
+                                          const encodedUri = encodeURI(csvContent);
+                                          const link = document.createElement("a");
+                                          link.setAttribute("href", encodedUri);
+                                          link.setAttribute("download", (message.sheetData.title || "sheet") + ".csv");
+                                          document.body.appendChild(link);
+                                          link.click();
+                                          document.body.removeChild(link);
+                                        }}
+                                        className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors w-full sm:w-auto shadow-md shadow-emerald-500/20"
+                                     >
+                                        <Download className="w-4 h-4" />
+                                        Download CSV
+                                     </button>
+                                  </div>
+                               </div>
+                            </div>
+                          </div>
                         ) : message.slideData ? (
                           <div className="flex flex-col w-full">
                             <div className="flex items-center gap-3 mb-2 px-1">
@@ -1932,7 +2097,7 @@ export default function App() {
               value={inputValue}
               onChange={handleInput}
               onKeyDown={handleKeyDown}
-              placeholder={appMode === 'learn' ? "Apa yang ingin dipelajari hari ini?" : appMode === 'generate_image' ? "Deskripsikan gambar yang ingin dibuat..." : appMode === 'search_image' ? "Apa yang ingin Anda cari..." : appMode === 'slide' ? "Topik presentasi apa yang ingin dibuat..." : t.typeMessage}
+              placeholder={appMode === 'learn' ? "Apa yang ingin dipelajari hari ini?" : appMode === 'generate_image' ? "Deskripsikan gambar yang ingin dibuat..." : appMode === 'search_image' ? "Apa yang ingin Anda cari..." : appMode === 'slide' ? "Topik presentasi apa yang ingin dibuat..." : appMode === 'sheet' ? "Data tabel apa yang ingin dibuat..." : t.typeMessage}
               rows={1}
               className="w-full bg-transparent resize-none outline-none px-4 pt-3 pb-2 text-[1.05rem] text-gray-900 placeholder:text-gray-500 overflow-hidden"
             />
@@ -2000,8 +2165,8 @@ export default function App() {
                            <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'slide' ? 'bg-purple-500 text-white' : 'bg-purple-50/80 text-purple-500 group-hover:bg-purple-100'}`}><MonitorPlay className="w-5 h-5"/></div>
                            <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Slide</span>
                          </button>
-                         <button onClick={() => { setFeatureMenuOpen(false); alert("Fitur Spreadsheet akan segera hadir"); }} className="flex flex-col items-center justify-start gap-2 p-2 rounded-2xl hover:bg-gray-50 transition-colors group">
-                           <div className="w-[42px] h-[42px] rounded-full bg-emerald-50/80 text-emerald-500 flex items-center justify-center group-hover:bg-emerald-100 transition-colors"><Table className="w-5 h-5"/></div>
+                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'sheet' ? 'chat' : 'sheet'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'sheet' ? 'bg-emerald-100/50' : 'hover:bg-gray-50'}`}>
+                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'sheet' ? 'bg-emerald-500 text-white' : 'bg-emerald-50/80 text-emerald-500 group-hover:bg-emerald-100'}`}><Table className="w-5 h-5"/></div>
                            <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Sheet</span>
                          </button>
                          <button onClick={() => { setFeatureMenuOpen(false); alert("Fitur Buat CV akan segera hadir"); }} className="flex flex-col items-center justify-start gap-2 p-2 rounded-2xl hover:bg-gray-50 transition-colors group">
