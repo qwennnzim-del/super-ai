@@ -401,7 +401,7 @@ export default function App() {
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<any>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const [aiModel, setAiModel] = useState<"gemini-2.5-flash" | "gemini-2.5-pro">("gemini-2.5-pro");
+  const [aiModel, setAiModel] = useState<"gemini-2.5-flash" | "gemini-2.5-pro">("gemini-2.5-flash");
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [profileTab, setProfileTab] = useState<"profile" | "settings">("profile");
@@ -975,16 +975,16 @@ export default function App() {
 
       let shouldMentionOrigin = contents.filter(c => c.role === "user").length <= 1; // Only mention in early conversation easily or when asked explicitly
       
-      let sysInstruction = locationContext + `You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI. ${shouldMentionOrigin ? "You were created and developed by SuperRinz. Briefly acknowledge this if it makes sense, but do not repeat your origins unless specifically asked." : "Do not state your origins unless specifically asked."} Tanyakan balik ke user mengenai topik pembicaraan agar nyambung.`;
+      let sysInstruction = locationContext + `You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI. ${shouldMentionOrigin ? "You were created and developed by SuperRinz." : ""} Selalu tanyakan balik ke user mengenai topik pembicaraan agar obrolan panjang dan mengalir alami.`;
 
       if (appMode === 'learn') {
          sysInstruction = locationContext + "Anda adalah seorang guru profesional yang cerdas, interaktif, dan menyenangkan. Pengguna akan memberikan topik yang ingin mereka pelajari. Tugas Anda: 1. Menjelaskan materi dengan singkat, padat, dan seru. 2. Memberikan kuis pilihan ganda (A, B, C, D) untuk menguji pemahaman pengguna. 3. Bereaksi secara interaktif terhadap jawaban pengguna (memberikan pujian/poin jika benar, koreksi dan penjelasan jika salah). 4. Menyediakan tugas harian atau latihan tambahan asyik untuk dikerjakan. 5. Selalu gunakan format markdown dengan blok kutipan atau formatting yang rapi. 6. Pastikan opsi kuis A, B, C, D mudah diidentifikasi (gunakan list markdown). Jangan selalu mengulang instruksi, langsung mulai pelajaran atau permainan/kuis pilihan ganda ketika ada input. Jadikan simulasi belajar ini seperti game seru!";
       } else if (aiModel === 'gemini-2.5-pro') {
-         sysInstruction = locationContext + `You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI. ${shouldMentionOrigin ? "You were created and developed by SuperRinz." : ""} Selalu tanyakan balik ke user mengenai topik pembicaraan agar obrolan panjang dan mengalir alami. Kamu harus MENGKOMUNIKASIKAN proses berpikirmu sebelum menjawab pertanyaan. Untuk melakukan hal ini, selalu awali responmu dengan TAG <thinking> dan tutup dengan </thinking> dan isi didalamnya dengan analisis, penalaran, atau rencana kamu. Pastikan untuk MENGGUNAKAN format markdown di dalam tag thinking.`;
+         sysInstruction += " Kamu harus MENGKOMUNIKASIKAN proses berpikirmu sebelum menjawab pertanyaan. Untuk melakukan hal ini, selalu awali responmu dengan TAG <thinking> dan tutup dengan </thinking> dan isi didalamnya dengan analisis, penalaran, atau rencana kamu. Pastikan untuk MENGGUNAKAN format markdown di dalam tag thinking.";
       }
 
       const response = await ai.models.generateContentStream({
-        model: 'gemini-2.5-flash',
+        model: aiModel,
         config: { 
           systemInstruction: sysInstruction,
           tools: toolsConfig 
@@ -1304,7 +1304,6 @@ export default function App() {
                            <div className="flex items-center gap-3 mt-1 mb-2 px-2">
                              <div className="flex items-center">
                                <div className="w-[35px] h-[35px] flex items-center justify-center shrink-0 relative z-10">
-                                 {isSearching ? (
                                    <div className="loader">
                                      <svg width="100" height="100" viewBox="0 0 100 100">
                                        <defs>
@@ -1318,9 +1317,6 @@ export default function App() {
                                      </svg>
                                      <div className="box"></div>
                                    </div>
-                                 ) : (
-                                   <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-                                 )}
                                </div>
                                <AnimatePresence>
                                   {isSearching && loadingIconType !== "none" && (
@@ -1341,7 +1337,7 @@ export default function App() {
                                </AnimatePresence>
                              </div>
                              <span className={`text-[0.95rem] font-medium tracking-wide animate-pulse ml-1 ${isSearching ? 'bg-clip-text text-transparent bg-gradient-to-r from-[#4285F4] via-[#EA4335] via-[#FBBC05] to-[#34A853]' : 'text-gray-500'}`}>
-                                {isSearching ? loadingText : 'Berfikir...'}
+                                {loadingText}
                              </span>
                            </div>
                         ) : message.slideData ? (
@@ -1408,7 +1404,7 @@ export default function App() {
                                  const thinkingMatch = rawText.match(/<thinking>([\s\S]*?)<\/thinking>/);
                                  if (thinkingMatch) {
                                    thinkingText = thinkingMatch[1].trim();
-                                   textToRender = rawText.replace(/<thinking>[\s\S]*?<\/thinking>/, '').trim();
+                                   textToRender = rawText.replace(thinkingMatch[0], '').trim();
                                  } else if (rawText.startsWith('<thinking>')) {
                                    thinkingText = rawText.replace('<thinking>', '').trim();
                                    textToRender = "";
@@ -1457,12 +1453,29 @@ export default function App() {
                                  return (
                                    <>
                                      {thinkingText && (
-                                       <details className="mb-4 bg-gray-50 border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                                          <summary className="px-4 py-2 bg-gray-100 cursor-pointer font-medium text-gray-600 hover:bg-gray-200 transition-colors list-none select-none flex items-center gap-2">
-                                             <Sparkles className="w-4 h-4 text-purple-500" />
-                                             <span className="text-sm">Proses Berpikir...</span>
+                                       <details className="mb-4 bg-gray-50/50 border border-gray-100 rounded-xl overflow-hidden group">
+                                          <summary className="px-4 py-3 cursor-pointer font-medium text-gray-500 hover:text-gray-700 transition-colors list-none select-none flex items-center justify-between">
+                                             <div className="flex items-center gap-2">
+                                                <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                                                   <div className="loader scale-[0.6]">
+                                                     <svg width="100" height="100" viewBox="0 0 100 100">
+                                                       <defs>
+                                                         <mask id="clipping">
+                                                           <polygon points="0,0 100,0 100,100 0,100" fill="black"></polygon>
+                                                           <polygon points="25,25 75,25 50,75" fill="white"></polygon>
+                                                           <polygon points="50,25 75,75 25,75" fill="white"></polygon>
+                                                           <polygon points="35,35 65,35 50,65" fill="white"></polygon>
+                                                         </mask>
+                                                       </defs>
+                                                     </svg>
+                                                     <div className="box"></div>
+                                                   </div>
+                                                </div>
+                                                <span className="text-sm">Proses Berpikir</span>
+                                             </div>
+                                             <ChevronDown className="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform duration-200" />
                                           </summary>
-                                          <div className="p-4 text-sm text-gray-600 bg-gray-50 border-t border-gray-200 italic opacity-80 markdown-body prose-sm prose-gray max-w-none">
+                                          <div className="p-4 pt-1 text-[0.9rem] text-gray-600 bg-gray-50/50 markdown-body prose-sm prose-gray max-w-none">
                                             <Markdown remarkPlugins={[remarkGfm]} components={{ code: CodeBlock }}>{thinkingText}</Markdown>
                                           </div>
                                        </details>
@@ -1814,23 +1827,19 @@ export default function App() {
                        <div className="flex items-center gap-3">
                           <div className="flex items-center">
                             <div className="w-[35px] h-[35px] flex items-center justify-center shrink-0 relative z-10">
-                               {isSearching ? (
-                                 <div className="loader">
-                                   <svg width="100" height="100" viewBox="0 0 100 100">
-                                     <defs>
-                                       <mask id="clipping">
-                                         <polygon points="0,0 100,0 100,100 0,100" fill="black"></polygon>
-                                         <polygon points="25,25 75,25 50,75" fill="white"></polygon>
-                                         <polygon points="50,25 75,75 25,75" fill="white"></polygon>
-                                         <polygon points="35,35 65,35 50,65" fill="white"></polygon>
-                                       </mask>
-                                     </defs>
-                                   </svg>
-                                   <div className="box"></div>
-                                 </div>
-                               ) : (
-                                 <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-                               )}
+                                   <div className="loader">
+                                     <svg width="100" height="100" viewBox="0 0 100 100">
+                                       <defs>
+                                         <mask id="clipping">
+                                           <polygon points="0,0 100,0 100,100 0,100" fill="black"></polygon>
+                                           <polygon points="25,25 75,25 50,75" fill="white"></polygon>
+                                           <polygon points="50,25 75,75 25,75" fill="white"></polygon>
+                                           <polygon points="35,35 65,35 50,65" fill="white"></polygon>
+                                         </mask>
+                                       </defs>
+                                     </svg>
+                                     <div className="box"></div>
+                                   </div>
                             </div>
                             <AnimatePresence>
                                {isSearching && loadingIconType !== "none" && (
@@ -1851,7 +1860,7 @@ export default function App() {
                             </AnimatePresence>
                           </div>
                           <span className={`text-[0.95rem] font-medium tracking-wide animate-pulse ml-1 ${isSearching ? 'bg-clip-text text-transparent bg-gradient-to-r from-[#4285F4] via-[#EA4335] via-[#FBBC05] to-[#34A853]' : 'text-gray-500'}`}>
-                            {isSearching ? loadingText : 'Berfikir...'}
+                            {loadingText}
                           </span>
                        </div>
                      )}
