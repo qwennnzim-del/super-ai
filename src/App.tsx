@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { Info, Shield, HelpCircle, ChevronRight, ArrowLeft, Sparkles, Mic, ChevronDown, Menu, Frame, SquareArrowUpRight, Bot, Check, Copy, MessageSquare, Trash2, LogOut, X, Search, Mail, Lock, Eye, Globe, Camera, Image as ImageIcon, FileText, Paperclip, Plus, Crown, ThumbsUp, Share2, Palette, BookOpen, MonitorPlay, Table, Briefcase, Download, Square, Loader2 } from "lucide-react";
+import { Info, Shield, HelpCircle, ChevronRight, ArrowLeft, Sparkles, Mic, ChevronDown, Menu, Frame, SquareArrowUpRight, Bot, Check, Copy, MessageSquare, Trash2, LogOut, X, Search, Mail, Lock, Eye, Globe, Camera, Image as ImageIcon, FileText, Paperclip, Plus, Crown, ThumbsUp, Share2, Palette, BookOpen, MonitorPlay, Table, Briefcase, Download, Square, Loader2, Map as MapIcon, CloudSun, Calendar, Clock } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { auth, db, googleAuthProvider, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
@@ -1332,7 +1332,7 @@ export default function App() {
                                        className="w-[30px] h-[30px] flex items-center justify-center bg-white rounded-full shadow-sm border border-gray-100 z-0"
                                      >
                                         {loadingIconType === "google" && <Search className="w-4 h-4 text-blue-500" />}
-                                        {loadingIconType === "map" && <Map className="w-4 h-4 text-green-500" />}
+                                        {loadingIconType === "map" && <MapIcon className="w-4 h-4 text-green-500" />}
                                         {loadingIconType === "calendar" && <Calendar className="w-4 h-4 text-blue-500" />}
                                         {loadingIconType === "weather" && <CloudSun className="w-4 h-4 text-yellow-500" />}
                                         {loadingIconType === "time" && <Clock className="w-4 h-4 text-purple-500" />}
@@ -1842,7 +1842,7 @@ export default function App() {
                                     className="w-[30px] h-[30px] flex items-center justify-center bg-white rounded-full shadow-sm border border-gray-100 z-0"
                                   >
                                      {loadingIconType === "google" && <Search className="w-4 h-4 text-blue-500" />}
-                                     {loadingIconType === "map" && <Map className="w-4 h-4 text-green-500" />}
+                                     {loadingIconType === "map" && <MapIcon className="w-4 h-4 text-green-500" />}
                                      {loadingIconType === "calendar" && <Calendar className="w-4 h-4 text-blue-500" />}
                                      {loadingIconType === "weather" && <CloudSun className="w-4 h-4 text-yellow-500" />}
                                      {loadingIconType === "time" && <Clock className="w-4 h-4 text-purple-500" />}
