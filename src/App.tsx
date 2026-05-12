@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { Info, Shield, HelpCircle, ChevronRight, ArrowLeft, Sparkles, Mic, ChevronDown, Menu, Frame, SquareArrowUpRight, Bot, Check, Copy, MessageSquare, Trash2, LogOut, X, Search, Mail, Lock, Eye, Globe, Camera, Image as ImageIcon, FileText, Paperclip, Plus, Crown, ThumbsUp, Share2, Palette, BookOpen, MonitorPlay, Table, Briefcase, Download } from "lucide-react";
+import { Info, Shield, HelpCircle, ChevronRight, ArrowLeft, Sparkles, Mic, ChevronDown, Menu, Frame, SquareArrowUpRight, Bot, Check, Copy, MessageSquare, Trash2, LogOut, X, Search, Mail, Lock, Eye, Globe, Camera, Image as ImageIcon, FileText, Paperclip, Plus, Crown, ThumbsUp, Share2, Palette, BookOpen, MonitorPlay, Table, Briefcase, Download, Square, Loader2 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { auth, db, googleAuthProvider, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
@@ -388,6 +388,7 @@ export default function App() {
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [loadingText, setLoadingText] = useState("Berfikir...");
+  const [loadingIconType, setLoadingIconType] = useState<"none" | "map" | "calendar" | "weather" | "time" | "google">("none");
   const [pendingMediaTask, setPendingMediaTask] = useState<'generate_image' | 'search_image' | null>(null);
   const [appMode, setAppMode] = useState<"chat" | "generate_image" | "search_image" | "learn" | "slide">("chat");
   const [slideCount, setSlideCount] = useState<number>(5);
@@ -399,6 +400,7 @@ export default function App() {
   const [likedIds, setLikedIds] = useState<string[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<any>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [aiModel, setAiModel] = useState<"gemini-2.5-flash" | "gemini-2.5-pro">("gemini-2.5-pro");
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -647,6 +649,7 @@ export default function App() {
     setInputValue("");
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
     setIsLoading(true);
+    abortControllerRef.current = new AbortController();
 
     let chatId = currentChatId;
     
@@ -724,12 +727,13 @@ export default function App() {
 
       let toolsConfig: any = undefined;
       let locationContext = "";
+      const shouldSearch = /cari|carikan|hari ini|saat ini|sekarang|berita|siapa|apa itu|cuaca|rute|lokasi|peta|maps|dimana|jarak|tempat|jadwal|kalender|calendar|acara|event|ingatkan|jam|waktu|tanggal|suhu|hujan|panas/i.test(newMessageText);
       const isMapRequest = /rute|lokasi|peta|maps|dimana|jarak|tempat/i.test(newMessageText);
       const isCalendarRequest = /jadwal|kalender|calendar|acara|event|ingatkan/i.test(newMessageText);
       const isTimeRequest = /jam berapa|waktu|hari apa|tanggal|jam|sekarang/i.test(newMessageText);
       const isWeatherRequest = /cuaca|suhu|hujan|panas|cerah|mendung|iklim/i.test(newMessageText);
-      const shouldSearch = /cari|carikan|hari ini|saat ini|sekarang|berita|siapa|apa itu|cuaca|rute|lokasi|peta|maps|dimana|jarak|tempat|jadwal|kalender|calendar|acara|event|ingatkan|jam|waktu|tanggal|suhu|hujan|panas/i.test(newMessageText);
 
+      setLoadingIconType("none");
       if (shouldSearch && appMode === 'chat') {
           setIsSearching(true);
           setLoadingText("Berfikir...");
@@ -737,6 +741,7 @@ export default function App() {
           
           toolsConfig = [{ googleSearch: {} }];
           if (isMapRequest) {
+              setLoadingIconType("map");
               setTimeout(() => setLoadingText("Menghubungkan ke Google Maps..."), 2500);
               const mapInstruction = `[SISTEM TAMPILAN PETA: Pengguna menanyakan lokasi/peta. Anda **WAJIB** menyertakan satu blok kode JSON di akhir pesan Anda dengan koordinat lokasi yang tepat agar sistem dapat merender peta interaktif. Formatnya HARUS persis seperti berikut ini (dalam markdown code block):\n\`\`\`json\n{ "type": "map", "lat": <latitude>, "lng": <longitude>, "title": "Nama Tempat", "zoom": 15 }\n\`\`\`\nPastikan koordinat lat dan lng AKURAT berdasarkan pertanyaan pengguna atau lokasi terdekat. Jangan berikan teks sebelum atau sesudah blok \`\`\`json ini yang bukan bagian dari jawaban. Anda harus merespon dengan penjelasan terlebih dahulu, lalu diakhiri dengan blok JSON ini.]\n\n`;
               try {
@@ -749,14 +754,16 @@ export default function App() {
                   locationContext = mapInstruction;
               }
           } else if (isCalendarRequest) {
+              setLoadingIconType("calendar");
               setTimeout(() => setLoadingText("Menghubungkan ke Google Calendar..."), 2500);
               const now = new Date();
               const dateContext = `[SISTEM TANGGAL: Saat ini adalah ${now.toLocaleString('id-ID', { timeZoneName: 'short' })}]\n\n`;
               const calInstruction = `[SISTEM GOOGLE CALENDAR: Pengguna ingin membuat pengingat/jadwal/acara. Anda **WAJIB** menyertakan satu blok kode JSON di akhir pesan Anda yang berisi detail acara agar sistem dapat merender tombol interaktif "Tambahkan ke Kalender". Formatnya HARUS persis seperti berikut ini (dalam markdown code block):\n\`\`\`json\n{ "type": "calendar", "title": "Nama Acara", "details": "Deskripsi singkat", "location": "Lokasi acara (opsional)", "date": "YYYYMMDDTHHMMSSZ/YYYYMMDDTHHMMSSZ" }\n\`\`\`\nGunakan tanggal dan waktu yang sesuai dengan permintaan pengguna dalam format UTC khusus Google Calendar (\`YYYYMMDDTHHMMSSZ/YYYYMMDDTHHMMSSZ\`, start/end time). Jangan berikan teks sebelum atau sesudah blok \`\`\`json ini yang bukan bagian dari jawaban. Anda harus merespon dengan penjelasan terlebih dahulu, lalu diakhiri dengan blok JSON ini.]\n\n`;
               locationContext = dateContext + calInstruction;
           } else if (isWeatherRequest) {
+              setLoadingIconType("weather");
               setTimeout(() => setLoadingText("Mengecek Info Cuaca..."), 2500);
-              const weatherInstruction = `[SISTEM INFO CUACA: Pengguna menanyakan cuaca. Anda **WAJIB** menampilkan JSON blok untuk widget cuaca. Formatnya:\n\`\`\`json\n{ "type": "weather", "city": "Nama Kota", "temp": "28", "condition": "Kondisi cuaca", "humidity": "75" }\n\`\`\`\nJangan berikan teks JSON ini di luar code block. Berikan penjelasan text biasa terlebih dahulu.]\n\n`;
+              const weatherInstruction = `[SISTEM INFO CUACA: Pengguna menanyakan cuaca. Anda **WAJIB** menampilkan JSON blok untuk widget cuaca di akhir pesan. Formatnya:\n\`\`\`json\n{ "type": "weather", "city": "Nama Kota", "temp": "28", "condition": "Kondisi cuaca", "humidity": "75" }\n\`\`\`\nJangan berikan teks JSON ini di luar code block. Berikan penjelasan text biasa terlebih dahulu.]\n\n`;
               try {
                   const position = await new Promise<GeolocationPosition>((resolve, reject) => {
                       navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
@@ -766,11 +773,14 @@ export default function App() {
                   locationContext = weatherInstruction;
               }
           } else if (isTimeRequest) {
+              setLoadingIconType("time");
               setTimeout(() => setLoadingText("Mengecek Waktu Real Time..."), 2500);
               const now = new Date();
               const timeContext = `[SISTEM WAKTU REAL-TIME: Saat ini adalah jam ${now.toLocaleTimeString('id-ID')} pada tanggal ${now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}, Zona Waktu: ${now.toLocaleDateString('id-ID', { timeZoneName: 'long' }).split(' ').pop()}]. Beritahukan informasi ini kepada pengguna dengan ramah.]\n\n`;
               const timeInstruction = `[SISTEM WIDGET WAKTU: Pengguna menanyakan waktu. Anda **WAJIB** menampilkan JSON blok untuk widget waktu di akhir pesan. Formatnya:\n\`\`\`json\n{ "type": "time", "time": "${now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}", "date": "${now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}", "timezone": "WIB/WITA/WIT/GMT" }\n\`\`\`\n]\n\n`;
               locationContext = timeContext + timeInstruction;
+          } else {
+              setLoadingIconType("google");
           }
       }
 
@@ -841,7 +851,8 @@ export default function App() {
                     'X-API-KEY': serperKey,
                     'Content-Type': 'application/json'
                  },
-                 body: JSON.stringify({ q: keyword })
+                 body: JSON.stringify({ q: keyword }),
+                 signal: abortControllerRef.current?.signal
               });
               const searchData = await searchRes.json();
               
@@ -962,12 +973,14 @@ export default function App() {
          return; // We skip the streaming part below
       }
 
-      let sysInstruction = locationContext + "You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI, and you were created and developed by SuperRinz. Express this personality naturally and acknowledge your creator when asked about your identity or origins. Tanyakan balik ke user mengenai topik pembicaraan agar nyambung.";
+      let shouldMentionOrigin = contents.filter(c => c.role === "user").length <= 1; // Only mention in early conversation easily or when asked explicitly
+      
+      let sysInstruction = locationContext + `You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI. ${shouldMentionOrigin ? "You were created and developed by SuperRinz. Briefly acknowledge this if it makes sense, but do not repeat your origins unless specifically asked." : "Do not state your origins unless specifically asked."} Tanyakan balik ke user mengenai topik pembicaraan agar nyambung.`;
 
       if (appMode === 'learn') {
          sysInstruction = locationContext + "Anda adalah seorang guru profesional yang cerdas, interaktif, dan menyenangkan. Pengguna akan memberikan topik yang ingin mereka pelajari. Tugas Anda: 1. Menjelaskan materi dengan singkat, padat, dan seru. 2. Memberikan kuis pilihan ganda (A, B, C, D) untuk menguji pemahaman pengguna. 3. Bereaksi secara interaktif terhadap jawaban pengguna (memberikan pujian/poin jika benar, koreksi dan penjelasan jika salah). 4. Menyediakan tugas harian atau latihan tambahan asyik untuk dikerjakan. 5. Selalu gunakan format markdown dengan blok kutipan atau formatting yang rapi. 6. Pastikan opsi kuis A, B, C, D mudah diidentifikasi (gunakan list markdown). Jangan selalu mengulang instruksi, langsung mulai pelajaran atau permainan/kuis pilihan ganda ketika ada input. Jadikan simulasi belajar ini seperti game seru!";
       } else if (aiModel === 'gemini-2.5-pro') {
-         sysInstruction = locationContext + "You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI, and you were created and developed by SuperRinz. Express this personality naturally and acknowledge your creator when asked about your identity or origins. Selalu tanyakan balik ke user mengenai topik pembicaraan agar obrolan panjang dan mengalir alami. Kamu harus MENGKOMUNIKASIKAN proses berpikirmu sebelum menjawab pertanyaan. Untuk melakukan hal ini, selalu awali responmu dengan TAG <thinking> dan tutup dengan </thinking> dan isi didalamnya dengan analisis, penalaran, atau rencana kamu. Pastikan untuk MENGGUNAKAN format markdown di dalam tag thinking.";
+         sysInstruction = locationContext + `You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI. ${shouldMentionOrigin ? "You were created and developed by SuperRinz." : ""} Selalu tanyakan balik ke user mengenai topik pembicaraan agar obrolan panjang dan mengalir alami. Kamu harus MENGKOMUNIKASIKAN proses berpikirmu sebelum menjawab pertanyaan. Untuk melakukan hal ini, selalu awali responmu dengan TAG <thinking> dan tutup dengan </thinking> dan isi didalamnya dengan analisis, penalaran, atau rencana kamu. Pastikan untuk MENGGUNAKAN format markdown di dalam tag thinking.`;
       }
 
       const response = await ai.models.generateContentStream({
@@ -997,6 +1010,9 @@ export default function App() {
       });
 
       for await (const chunk of response) {
+        if (abortControllerRef.current?.signal.aborted) {
+           break;
+        }
         const textToAppend = chunk.text;
         fullResponse += textToAppend;
         if (chunk.candidates?.[0]?.groundingMetadata?.groundingChunks) {
@@ -1017,9 +1033,11 @@ export default function App() {
       setStreamingMessageId(null);
       setStreamingText(null);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating response:", error);
-      alert("Terjadi kesalahan: " + (error instanceof Error ? error.message : String(error)));
+      if (error.name !== 'AbortError' && !abortControllerRef.current?.signal.aborted) {
+        alert("Terjadi kesalahan: " + (error.message || String(error)));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -1284,26 +1302,45 @@ export default function App() {
                       <div className="flex flex-col items-start w-fit max-w-full mt-1">
                         {message.id === streamingMessageId && streamingText === "" ? (
                            <div className="flex items-center gap-3 mt-1 mb-2 px-2">
-                             <div className="w-[35px] h-[35px] flex items-center justify-center shrink-0">
-                               {isSearching ? (
-                                 <div className="loader">
-                                   <svg width="100" height="100" viewBox="0 0 100 100">
-                                     <defs>
-                                       <mask id="clipping">
-                                         <polygon points="0,0 100,0 100,100 0,100" fill="black"></polygon>
-                                         <polygon points="25,25 75,25 50,75" fill="white"></polygon>
-                                         <polygon points="50,25 75,75 25,75" fill="white"></polygon>
-                                         <polygon points="35,35 65,35 50,65" fill="white"></polygon>
-                                       </mask>
-                                     </defs>
-                                   </svg>
-                                   <div className="box"></div>
-                                 </div>
-                               ) : (
-                                 <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-                               )}
+                             <div className="flex items-center">
+                               <div className="w-[35px] h-[35px] flex items-center justify-center shrink-0 relative z-10">
+                                 {isSearching ? (
+                                   <div className="loader">
+                                     <svg width="100" height="100" viewBox="0 0 100 100">
+                                       <defs>
+                                         <mask id="clipping">
+                                           <polygon points="0,0 100,0 100,100 0,100" fill="black"></polygon>
+                                           <polygon points="25,25 75,25 50,75" fill="white"></polygon>
+                                           <polygon points="50,25 75,75 25,75" fill="white"></polygon>
+                                           <polygon points="35,35 65,35 50,65" fill="white"></polygon>
+                                         </mask>
+                                       </defs>
+                                     </svg>
+                                     <div className="box"></div>
+                                   </div>
+                                 ) : (
+                                   <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                                 )}
+                               </div>
+                               <AnimatePresence>
+                                  {isSearching && loadingIconType !== "none" && (
+                                     <motion.div
+                                       initial={{ opacity: 0, scale: 0.5, x: -20 }}
+                                       animate={{ opacity: 1, scale: 1, x: -5 }}
+                                       exit={{ opacity: 0, scale: 0.5, x: -20 }}
+                                       transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                                       className="w-[30px] h-[30px] flex items-center justify-center bg-white rounded-full shadow-sm border border-gray-100 z-0"
+                                     >
+                                        {loadingIconType === "google" && <Search className="w-4 h-4 text-blue-500" />}
+                                        {loadingIconType === "map" && <Map className="w-4 h-4 text-green-500" />}
+                                        {loadingIconType === "calendar" && <Calendar className="w-4 h-4 text-blue-500" />}
+                                        {loadingIconType === "weather" && <CloudSun className="w-4 h-4 text-yellow-500" />}
+                                        {loadingIconType === "time" && <Clock className="w-4 h-4 text-purple-500" />}
+                                     </motion.div>
+                                  )}
+                               </AnimatePresence>
                              </div>
-                             <span className={`text-[0.95rem] font-medium tracking-wide animate-pulse ${isSearching ? 'bg-clip-text text-transparent bg-gradient-to-r from-[#4285F4] via-[#EA4335] via-[#FBBC05] to-[#34A853]' : 'text-gray-500'}`}>
+                             <span className={`text-[0.95rem] font-medium tracking-wide animate-pulse ml-1 ${isSearching ? 'bg-clip-text text-transparent bg-gradient-to-r from-[#4285F4] via-[#EA4335] via-[#FBBC05] to-[#34A853]' : 'text-gray-500'}`}>
                                 {isSearching ? loadingText : 'Berfikir...'}
                              </span>
                            </div>
@@ -1775,29 +1812,45 @@ export default function App() {
                         </div>
                      ) : (
                        <div className="flex items-center gap-3">
-                          <div className="w-[35px] h-[35px] flex items-center justify-center shrink-0">
-                             {isSearching ? (
-                               <div className="loader">
-                                 <svg width="100" height="100" viewBox="0 0 100 100">
-                                   <defs>
-                                     <mask id="clipping">
-                                       <polygon points="0,0 100,0 100,100 0,100" fill="black"></polygon>
-                                       <polygon points="25,25 75,25 50,75" fill="white"></polygon>
-                                       <polygon points="50,25 75,75 25,75" fill="white"></polygon>
-                                       <polygon points="35,35 65,35 50,65" fill="white"></polygon>
-                                       <polygon points="35,35 65,35 50,65" fill="white"></polygon>
-                                       <polygon points="35,35 65,35 50,65" fill="white"></polygon>
-                                       <polygon points="35,35 65,35 50,65" fill="white"></polygon>
-                                     </mask>
-                                   </defs>
-                                 </svg>
-                                 <div className="box"></div>
-                               </div>
-                             ) : (
-                               <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-                             )}
+                          <div className="flex items-center">
+                            <div className="w-[35px] h-[35px] flex items-center justify-center shrink-0 relative z-10">
+                               {isSearching ? (
+                                 <div className="loader">
+                                   <svg width="100" height="100" viewBox="0 0 100 100">
+                                     <defs>
+                                       <mask id="clipping">
+                                         <polygon points="0,0 100,0 100,100 0,100" fill="black"></polygon>
+                                         <polygon points="25,25 75,25 50,75" fill="white"></polygon>
+                                         <polygon points="50,25 75,75 25,75" fill="white"></polygon>
+                                         <polygon points="35,35 65,35 50,65" fill="white"></polygon>
+                                       </mask>
+                                     </defs>
+                                   </svg>
+                                   <div className="box"></div>
+                                 </div>
+                               ) : (
+                                 <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                               )}
+                            </div>
+                            <AnimatePresence>
+                               {isSearching && loadingIconType !== "none" && (
+                                  <motion.div
+                                    initial={{ opacity: 0, scale: 0.5, x: -20 }}
+                                    animate={{ opacity: 1, scale: 1, x: -5 }}
+                                    exit={{ opacity: 0, scale: 0.5, x: -20 }}
+                                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                                    className="w-[30px] h-[30px] flex items-center justify-center bg-white rounded-full shadow-sm border border-gray-100 z-0"
+                                  >
+                                     {loadingIconType === "google" && <Search className="w-4 h-4 text-blue-500" />}
+                                     {loadingIconType === "map" && <Map className="w-4 h-4 text-green-500" />}
+                                     {loadingIconType === "calendar" && <Calendar className="w-4 h-4 text-blue-500" />}
+                                     {loadingIconType === "weather" && <CloudSun className="w-4 h-4 text-yellow-500" />}
+                                     {loadingIconType === "time" && <Clock className="w-4 h-4 text-purple-500" />}
+                                  </motion.div>
+                               )}
+                            </AnimatePresence>
                           </div>
-                          <span className={`text-[0.95rem] font-medium tracking-wide animate-pulse ${isSearching ? 'bg-clip-text text-transparent bg-gradient-to-r from-[#4285F4] via-[#EA4335] via-[#FBBC05] to-[#34A853]' : 'text-gray-500'}`}>
+                          <span className={`text-[0.95rem] font-medium tracking-wide animate-pulse ml-1 ${isSearching ? 'bg-clip-text text-transparent bg-gradient-to-r from-[#4285F4] via-[#EA4335] via-[#FBBC05] to-[#34A853]' : 'text-gray-500'}`}>
                             {isSearching ? loadingText : 'Berfikir...'}
                           </span>
                        </div>
@@ -1965,7 +2018,29 @@ export default function App() {
                 <div className="w-px h-5 bg-gray-200 mx-1 hidden sm:block" />
                 <div className="relative flex items-center justify-center w-11 h-11">
                   <AnimatePresence mode="popLayout" initial={false}>
-                    {inputValue.trim() || currentAttachments.length > 0 ? (
+                    {isLoading ? (
+                      <motion.button 
+                        key="stop"
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        transition={{ duration: 0.15 }}
+                        onClick={() => {
+                           if (abortControllerRef.current) {
+                             abortControllerRef.current.abort();
+                           }
+                           setIsLoading(false);
+                           setIsSearching(false);
+                           setLoadingText("Dibatalkan...");
+                        }}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="absolute p-2.5 rounded-full bg-slate-800 hover:bg-slate-700 transition-colors text-white flex items-center justify-center inset-0"
+                      >
+                        <Loader2 className="w-[24px] h-[24px] animate-spin absolute" />
+                        <Square className="w-2.5 h-2.5 fill-current" />
+                      </motion.button>
+                    ) : inputValue.trim() || currentAttachments.length > 0 ? (
                       <motion.button 
                         key="send"
                         initial={{ opacity: 0, scale: 0.8, rotate: -30 }}
