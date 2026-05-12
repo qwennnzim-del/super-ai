@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { Info, Shield, HelpCircle, ChevronRight, ArrowLeft, Sparkles, Mic, ChevronDown, Menu, Frame, SquareArrowUpRight, Bot, Check, Copy, MessageSquare, Trash2, LogOut, X, Search, Mail, Lock, Eye, Globe, Camera, Image as ImageIcon, FileText, Paperclip, Plus, Crown, ThumbsUp, Share2, Palette, BookOpen, MonitorPlay, Table, Briefcase, Download, Square, Loader2, Map as MapIcon, CloudSun, Calendar, Clock } from "lucide-react";
+import { Info, Shield, Layers, HelpCircle, ChevronRight, ArrowLeft, Sparkles, Mic, ChevronDown, Menu, Frame, SquareArrowUpRight, Bot, Check, Copy, MessageSquare, Trash2, LogOut, X, Search, Mail, Lock, Eye, Globe, Camera, Image as ImageIcon, FileText, Paperclip, Plus, Crown, ThumbsUp, Share2, Palette, BookOpen, MonitorPlay, Table, Briefcase, Download, Square, Loader2, Map as MapIcon, CloudSun, Calendar, Clock } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { auth, db, googleAuthProvider, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
@@ -84,6 +84,16 @@ const TRANSLATIONS = {
     pro: "Pro",
     profileIncomplete: "Profil belum lengkap",
     searchNotFound: "Pencarian tidak ditemukan",
+    dataTitle: "Data & Privasi",
+    clearHistoryTitle: "Hapus Semua Riwayat",
+    clearHistoryDesc: "Hapus semua riwayat percakapan Anda secara permanen dari server.",
+    exportDataTitle: "Ekspor Data",
+    exportDataDesc: "Unduh semua riwayat chat Anda secara offline sebagai file JSON.",
+    appVersion: "Versi Aplikasi",
+    themeTitle: "Pilih Tema",
+    themeDesc: "Berganti tampilan aplikasi ke mode Gelap (Segera Hadir).",
+    confirmClear: "Apakah Anda yakin ingin menghapus SEMUA riwayat chat Anda? Tindakan ini tidak dapat dibatalkan.",
+    clearSuccess: "Semua riwayat chat Anda berhasil dihapus.",
   },
   en: {
     hello: "Hii,",
@@ -136,6 +146,16 @@ const TRANSLATIONS = {
     pro: "Pro",
     profileIncomplete: "Profile incomplete",
     searchNotFound: "Search not found",
+    dataTitle: "Data & Privacy",
+    clearHistoryTitle: "Clear All History",
+    clearHistoryDesc: "Permanently delete all your chat history from the servers.",
+    exportDataTitle: "Export Data",
+    exportDataDesc: "Download all your chat history offline as a JSON file.",
+    appVersion: "App Version",
+    themeTitle: "Theme",
+    themeDesc: "Switch application appearance to Dark mode (Coming soon).",
+    confirmClear: "Are you sure you want to delete ALL your chat history? This action cannot be undone.",
+    clearSuccess: "All your chat history has been deleted successfully.",
   }
 };
 
@@ -576,6 +596,52 @@ export default function App() {
     }, (error) => handleFirestoreError(error, OperationType.LIST, `chats/${currentChatId}/messages`));
     return () => unsubscribe();
   }, [currentChatId, user]);
+
+  const [isClearingHistory, setIsClearingHistory] = useState(false);
+
+  const handleClearAllHistory = async () => {
+    if (!user) return;
+    if (!window.confirm(t.confirmClear)) return;
+    
+    setIsClearingHistory(true);
+    try {
+      // Create concurrent deletions via a batched approach or normal requests
+      const deletePromises = chats.map(chat => deleteDoc(doc(db, "chats", chat.id)));
+      await Promise.all(deletePromises);
+      setCurrentChatId(null);
+      setMessages([]);
+      alert(t.clearSuccess);
+    } catch (e: any) {
+      console.error("Failed to clear history", e);
+      alert("Error: " + e.message);
+    } finally {
+      setIsClearingHistory(false);
+    }
+  };
+
+  const handleExportData = () => {
+    if (!user) return;
+    try {
+      const exportObject = {
+        user: { name: profileName, email: user.email },
+        chats: chats.map(c => ({
+          ...c,
+          createdAt: c.createdAt?.toDate?.() || new Date(),
+          updatedAt: c.updatedAt?.toDate?.() || new Date()
+        }))
+      };
+      
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObject, null, 2));
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href",     dataStr);
+      downloadAnchorNode.setAttribute("download", "superai_export_" + new Date().getTime() + ".json");
+      document.body.appendChild(downloadAnchorNode); // required for firefox
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+    } catch(e) {
+      console.error("Export error", e);
+    }
+  };
 
   const handleLoginWithGoogle = async () => {
     try {
@@ -2482,7 +2548,7 @@ export default function App() {
                          <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5">
                            <Info className="w-4 h-4" /> {language === 'en' ? 'Information & Help' : 'Tentang & Bantuan'}
                          </h4>
-                         <div className="flex flex-col gap-3">
+                         <div className="flex flex-col gap-3 mb-8">
                             <button onClick={() => setActiveSettingsPage('about')} className="w-full text-left flex flex-col gap-1 hover:bg-gray-50 p-4 rounded-2xl transition-colors border border-gray-100 group">
                               <div className="flex justify-between items-center w-full">
                                 <span className="font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">{t.aboutTitle}</span>
@@ -2504,6 +2570,47 @@ export default function App() {
                               </div>
                               <span className="text-sm text-gray-500">{t.helpDesc}</span>
                             </button>
+                         </div>
+
+                         <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5">
+                           <Shield className="w-4 h-4" /> {(t as any).dataTitle || "Data & Privasi"}
+                         </h4>
+                         <div className="flex flex-col gap-3 mb-8">
+                            <button onClick={handleExportData} className="w-full text-left flex flex-col gap-1 hover:bg-blue-50 p-4 rounded-2xl transition-colors border border-gray-100 group">
+                              <div className="flex justify-between items-center w-full">
+                                <span className="font-semibold text-gray-800 group-hover:text-blue-600 transition-colors cursor-pointer">{(t as any).exportDataTitle || "Ekspor Data"}</span>
+                                <Download className="w-4 h-4 text-gray-400" />
+                              </div>
+                              <span className="text-sm text-gray-500">{(t as any).exportDataDesc || "Unduh semua riwayat chat offline."}</span>
+                            </button>
+
+                            <button disabled={isClearingHistory} onClick={handleClearAllHistory} className="w-full text-left flex flex-col gap-1 hover:bg-red-50 p-4 rounded-2xl transition-colors border border-gray-100 group disabled:opacity-50 disabled:cursor-not-allowed">
+                              <div className="flex justify-between items-center w-full">
+                                <span className="font-semibold text-gray-800 group-hover:text-red-600 transition-colors">{(t as any).clearHistoryTitle || "Hapus Semua Riwayat"}</span>
+                                {isClearingHistory ? <Loader2 className="w-4 h-4 text-gray-400 animate-spin" /> : <Trash2 className="w-4 h-4 text-gray-400" />}
+                              </div>
+                              <span className="text-sm text-gray-500">{(t as any).clearHistoryDesc || "Hapus semua chat dari server."}</span>
+                            </button>
+                         </div>
+
+                         <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5">
+                           <Layers className="w-4 h-4" /> {(t as any).themeTitle || "Tema Tampilan"}
+                         </h4>
+                         <div className="flex flex-col gap-3 mb-8">
+                            <div className="w-full flex items-center justify-between p-4 rounded-2xl border border-gray-100 bg-gray-50 cursor-not-allowed">
+                              <div className="flex flex-col gap-1">
+                                <span className="font-semibold text-gray-800">Mode Gelap (Dark Mode)</span>
+                                <span className="text-sm text-gray-500">{(t as any).themeDesc || "Segera Hadir"}</span>
+                              </div>
+                              <div className="w-12 h-6 bg-gray-200 rounded-full flex items-center p-1">
+                                <div className="w-4 h-4 bg-white rounded-full"></div>
+                              </div>
+                            </div>
+                         </div>
+                         
+                         <div className="pt-6 border-t border-gray-100 flex flex-col items-center justify-center gap-2">
+                            <span className="text-sm text-gray-400 font-medium tracking-wide">{(t as any).appVersion || "App Version"} 1.2.0</span>
+                            <span className="text-xs text-gray-300">© 2026 SuperAI. All rights reserved.</span>
                          </div>
                       </div>
                     </motion.div>
