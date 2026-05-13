@@ -1277,8 +1277,13 @@ export default function App() {
                    onClick={() => { setShowProfile(true); setIsSidebarOpen(false); }}
                    className="flex items-center gap-2 px-2 pb-2 cursor-pointer hover:bg-slate-100/50 rounded-xl transition-colors py-1.5"
                  >
-                   <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden shrink-0">
-                      {displayPhotoURL ? <img src={displayPhotoURL} className="w-full h-full object-cover" /> : <Bot size={16} />}
+                   <div className={`w-8 h-8 rounded-full shrink-0 relative flex items-center justify-center ${user.email === 'cipaonly08@gmail.com' ? 'p-[2px]' : 'bg-slate-200 overflow-hidden'}`}>
+                     {user.email === 'cipaonly08@gmail.com' && (
+                       <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-500 via-purple-500 via-pink-500 to-orange-500 animate-[spin_3s_linear_infinite]" />
+                     )}
+                     <div className={`w-full h-full rounded-full overflow-hidden z-10 relative ${user.email === 'cipaonly08@gmail.com' ? 'bg-white' : ''}`}>
+                       {displayPhotoURL ? <img src={displayPhotoURL} className="w-full h-full object-cover rounded-full" /> : <Bot size={16} />}
+                     </div>
                    </div>
                    <div className="flex flex-col overflow-hidden">
                       <span className="text-sm font-medium truncate">{displayDisplayName}</span>
@@ -1332,9 +1337,14 @@ export default function App() {
                whileHover={{ scale: 1.05 }}
                whileTap={{ scale: 0.95 }}
                onClick={() => setShowProfile(true)}
-               className="w-[34px] h-[34px] ml-1 rounded-full overflow-hidden cursor-pointer border border-[#cbd5e1]"
+               className={`w-[34px] h-[34px] ml-1 rounded-full relative cursor-pointer ${user.email === 'cipaonly08@gmail.com' ? 'p-[2px]' : ''}`}
              >
-               {displayPhotoURL ? <img src={displayPhotoURL} className="w-full h-full object-cover border border-[#cbd5e1] rounded-full" /> : <Bot size={20} />}
+               {user.email === 'cipaonly08@gmail.com' && (
+                 <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-500 via-purple-500 via-pink-500 to-orange-500 animate-[spin_3s_linear_infinite]" />
+               )}
+               <div className={`w-full h-full rounded-full overflow-hidden z-10 relative ${user.email === 'cipaonly08@gmail.com' ? 'bg-white border text-[#cbd5e1]' : 'border border-[#cbd5e1]'}`}>
+                 {displayPhotoURL ? <img src={displayPhotoURL} className="w-full h-full object-cover rounded-full" /> : <Bot size={20} />}
+               </div>
              </motion.div>
           )}
         </div>
@@ -2358,7 +2368,7 @@ export default function App() {
                <div className="flex flex-col items-center mb-10 mt-2">
                  <div className={`relative group mb-5 rounded-full ${user.email === 'cipaonly08@gmail.com' ? 'p-1' : ''}`}>
                    {user.email === 'cipaonly08@gmail.com' && (
-                     <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 animate-[spin_3s_linear_infinite]" />
+                     <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-500 via-purple-500 via-pink-500 to-orange-500 animate-[spin_3s_linear_infinite]" />
                    )}
                    <div className={`w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden ${user.email === 'cipaonly08@gmail.com' ? 'border-[4px] border-white' : 'border-4 border-white shadow-md'} relative transition-transform group-hover:scale-[1.02] z-10 bg-white`}>
                      {displayPhotoURL ? (
