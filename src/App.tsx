@@ -91,7 +91,7 @@ const TRANSLATIONS = {
     exportDataDesc: "Unduh semua riwayat chat Anda secara offline sebagai file JSON.",
     appVersion: "Versi Aplikasi",
     themeTitle: "Pilih Tema",
-    themeDesc: "Berganti tampilan aplikasi ke mode Gelap (Segera Hadir).",
+    themeDesc: "Berganti tampilan aplikasi ke mode Gelap.",
     confirmClear: "Apakah Anda yakin ingin menghapus SEMUA riwayat chat Anda? Tindakan ini tidak dapat dibatalkan.",
     clearSuccess: "Semua riwayat chat Anda berhasil dihapus.",
   },
@@ -153,7 +153,7 @@ const TRANSLATIONS = {
     exportDataDesc: "Download all your chat history offline as a JSON file.",
     appVersion: "App Version",
     themeTitle: "Theme",
-    themeDesc: "Switch application appearance to Dark mode (Coming soon).",
+    themeDesc: "Switch application appearance to Dark mode.",
     confirmClear: "Are you sure you want to delete ALL your chat history? This action cannot be undone.",
     clearSuccess: "All your chat history has been deleted successfully.",
   }
@@ -411,7 +411,7 @@ export default function App() {
   const [loadingText, setLoadingText] = useState("Berfikir...");
   const [loadingIconType, setLoadingIconType] = useState<"none" | "map" | "calendar" | "weather" | "time" | "google">("none");
   const [pendingMediaTask, setPendingMediaTask] = useState<'generate_image' | 'search_image' | null>(null);
-  const [appMode, setAppMode] = useState<"chat" | "generate_image" | "search_image" | "learn" | "slide" | "sheet">("chat");
+  const [appMode, setAppMode] = useState<"chat" | "generate_image" | "search_image" | "learn" | "slide" | "sheet" | "cv">("chat");
   const [slideCount, setSlideCount] = useState<number>(5);
   const [slideImageMedia, setSlideImageMedia] = useState<'ai' | 'search'>('ai');
   const [slideTaskState, setSlideTaskState] = useState<'idle' | 'outline' | 'composing' | 'rendering' | 'done'>('idle');
@@ -598,10 +598,30 @@ export default function App() {
   }, [currentChatId, user]);
 
   const [isClearingHistory, setIsClearingHistory] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showClearSuccess, setShowClearSuccess] = useState(false);
+  
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem("app_theme") === "dark";
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem("app_theme", "dark");
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem("app_theme", "light");
+    }
+  }, [isDarkMode]);
+
+  const toggleTheme = () => setIsDarkMode(!isDarkMode);
+
+  const confirmClearAllHistory = () => setShowClearConfirm(true);
 
   const handleClearAllHistory = async () => {
     if (!user) return;
-    if (!window.confirm(t.confirmClear)) return;
+    setShowClearConfirm(false);
     
     setIsClearingHistory(true);
     try {
@@ -610,7 +630,7 @@ export default function App() {
       await Promise.all(deletePromises);
       setCurrentChatId(null);
       setMessages([]);
-      alert(t.clearSuccess);
+      setShowClearSuccess(true);
     } catch (e: any) {
       console.error("Failed to clear history", e);
       alert("Error: " + e.message);
@@ -623,7 +643,7 @@ export default function App() {
     if (!user) return;
     try {
       const exportObject = {
-        user: { name: profileName, email: user.email },
+        user: { name: displayDisplayName, email: user.email },
         chats: chats.map(c => ({
           ...c,
           createdAt: c.createdAt?.toDate?.() || new Date(),
@@ -1115,10 +1135,12 @@ export default function App() {
 
       let shouldMentionOrigin = contents.filter(c => c.role === "user").length <= 1; // Only mention in early conversation easily or when asked explicitly
       
-      let sysInstruction = locationContext + `You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI. ${shouldMentionOrigin ? "You were created and developed by SuperRinz." : ""} Selalu tanyakan balik ke user mengenai topik pembicaraan agar obrolan panjang dan mengalir alami.`;
+      let sysInstruction = locationContext + `You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI. ${shouldMentionOrigin ? "You were created and developed by SuperRinz." : ""} Selalu tanyakan balik ke user mengenai topik pembicaraan agar obrolan panjang dan mengalir alami.\n\nIMPORTANT: You must respond in the ${language === "id" ? "Indonesian" : "English"} language.`;
 
       if (appMode === 'learn') {
          sysInstruction = locationContext + "Anda adalah seorang guru profesional yang cerdas, interaktif, dan menyenangkan. Pengguna akan memberikan topik yang ingin mereka pelajari. Tugas Anda: 1. Menjelaskan materi dengan singkat, padat, dan seru. 2. Memberikan kuis pilihan ganda (A, B, C, D) untuk menguji pemahaman pengguna. 3. Bereaksi secara interaktif terhadap jawaban pengguna (memberikan pujian/poin jika benar, koreksi dan penjelasan jika salah). 4. Menyediakan tugas harian atau latihan tambahan asyik untuk dikerjakan. 5. Selalu gunakan format markdown dengan blok kutipan atau formatting yang rapi. 6. Pastikan opsi kuis A, B, C, D mudah diidentifikasi (gunakan list markdown). Jangan selalu mengulang instruksi, langsung mulai pelajaran atau permainan/kuis pilihan ganda ketika ada input. Jadikan simulasi belajar ini seperti game seru!";
+      } else if (appMode === 'cv') {
+         sysInstruction = locationContext + "Anda adalah seorang asisten pembuat Curriculum Vitae (CV) dan resume profesional yang terampil (ATS Friendly). Pengguna akan memberikan data diri, riwayat pendidikan, pengalaman kerja, keahlian, dll. Tugas Anda: 1. Susun dokumen CV profesional untuk pengguna menggunakan format Markdown. 2. Gunakan heading yang jelas (Summary, Experience, Education, Skills). 3. Pilih kata-kata yang kuat dan deskripsi pekerjaan yang profesional asalkan sesuai dengan data pengguna. 4. Apabila data kurang lengkap, berikan kerangka CV (template) dan minta pengguna untuk melengkapinya.";
       } else if (aiModel === 'gemini-2.5-pro') {
          sysInstruction += " Kamu harus MENGKOMUNIKASIKAN proses berpikirmu sebelum menjawab pertanyaan. Untuk melakukan hal ini, selalu awali responmu dengan TAG <thinking> dan tutup dengan </thinking> dan isi didalamnya dengan analisis, penalaran, atau rencana kamu. Pastikan untuk MENGGUNAKAN format markdown di dalam tag thinking.";
       }
@@ -2115,7 +2137,7 @@ export default function App() {
       </main>
 
       {/* Input Dock */}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#f4f7fb] via-[#f4f7fb] to-transparent pt-10 pb-6 px-4 sm:px-6 z-20">
+      <div className={`absolute inset-x-0 bottom-0 bg-gradient-to-t pt-10 pb-6 px-4 sm:px-6 z-20 ${isDarkMode ? 'from-[#121212] via-[#121212] to-transparent' : 'from-[#f4f7fb] via-[#f4f7fb] to-transparent'}`}>
         <div className="max-w-3xl mx-auto relative group">
           {/* Border Glow Layer */}
           <div className="absolute -inset-1 blur-md rounded-[2.1rem] overflow-hidden z-0 opacity-30 group-focus-within:opacity-60 transition-opacity duration-500 pointer-events-none">
@@ -2173,7 +2195,7 @@ export default function App() {
               value={inputValue}
               onChange={handleInput}
               onKeyDown={handleKeyDown}
-              placeholder={appMode === 'learn' ? "Apa yang ingin dipelajari hari ini?" : appMode === 'generate_image' ? "Deskripsikan gambar yang ingin dibuat..." : appMode === 'search_image' ? "Apa yang ingin Anda cari..." : appMode === 'slide' ? "Topik presentasi apa yang ingin dibuat..." : appMode === 'sheet' ? "Data tabel apa yang ingin dibuat..." : t.typeMessage}
+              placeholder={appMode === 'learn' ? "Apa yang ingin dipelajari hari ini?" : appMode === 'generate_image' ? "Deskripsikan gambar yang ingin dibuat..." : appMode === 'search_image' ? "Apa yang ingin Anda cari..." : appMode === 'slide' ? "Topik presentasi apa yang ingin dibuat..." : appMode === 'sheet' ? "Data tabel apa yang ingin dibuat..." : appMode === 'cv' ? "Siapa nama dan data diri untuk CV ini..." : t.typeMessage}
               rows={1}
               className="w-full bg-transparent resize-none outline-none px-4 pt-3 pb-2 text-[1.05rem] text-gray-900 placeholder:text-gray-500 overflow-hidden"
             />
@@ -2245,8 +2267,8 @@ export default function App() {
                            <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'sheet' ? 'bg-emerald-500 text-white' : 'bg-emerald-50/80 text-emerald-500 group-hover:bg-emerald-100'}`}><Table className="w-5 h-5"/></div>
                            <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Sheet</span>
                          </button>
-                         <button onClick={() => { setFeatureMenuOpen(false); alert("Fitur Buat CV akan segera hadir"); }} className="flex flex-col items-center justify-start gap-2 p-2 rounded-2xl hover:bg-gray-50 transition-colors group">
-                           <div className="w-[42px] h-[42px] rounded-full bg-pink-50/80 text-pink-500 flex items-center justify-center group-hover:bg-pink-100 transition-colors"><Briefcase className="w-5 h-5"/></div>
+                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'cv' ? 'chat' : 'cv'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'cv' ? 'bg-pink-100/50' : 'hover:bg-gray-50'}`}>
+                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'cv' ? 'bg-pink-500 text-white' : 'bg-pink-50/80 text-pink-500 group-hover:bg-pink-100'}`}><Briefcase className="w-5 h-5"/></div>
                            <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Buat CV</span>
                          </button>
                       </motion.div>
@@ -2594,7 +2616,7 @@ export default function App() {
                               <span className="text-sm text-gray-500">{(t as any).exportDataDesc || "Unduh semua riwayat chat offline."}</span>
                             </button>
 
-                            <button disabled={isClearingHistory} onClick={handleClearAllHistory} className="w-full text-left flex flex-col gap-1 hover:bg-red-50 p-4 rounded-2xl transition-colors border border-gray-100 group disabled:opacity-50 disabled:cursor-not-allowed">
+                            <button disabled={isClearingHistory} onClick={confirmClearAllHistory} className="w-full text-left flex flex-col gap-1 hover:bg-red-50 p-4 rounded-2xl transition-colors border border-gray-100 group disabled:opacity-50 disabled:cursor-not-allowed">
                               <div className="flex justify-between items-center w-full">
                                 <span className="font-semibold text-gray-800 group-hover:text-red-600 transition-colors">{(t as any).clearHistoryTitle || "Hapus Semua Riwayat"}</span>
                                 {isClearingHistory ? <Loader2 className="w-4 h-4 text-gray-400 animate-spin" /> : <Trash2 className="w-4 h-4 text-gray-400" />}
@@ -2607,20 +2629,23 @@ export default function App() {
                            <Layers className="w-4 h-4" /> {(t as any).themeTitle || "Tema Tampilan"}
                          </h4>
                          <div className="flex flex-col gap-3 mb-8">
-                            <div className="w-full flex items-center justify-between p-4 rounded-2xl border border-gray-100 bg-gray-50 cursor-not-allowed">
-                              <div className="flex flex-col gap-1">
-                                <span className="font-semibold text-gray-800">Mode Gelap (Dark Mode)</span>
-                                <span className="text-sm text-gray-500">{(t as any).themeDesc || "Segera Hadir"}</span>
+                            <div 
+                              onClick={toggleTheme}
+                              className="w-full flex items-center justify-between p-4 rounded-2xl border border-gray-100 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                            >
+                              <div className="flex flex-col gap-1 select-none">
+                                <span className="font-semibold text-gray-800">{language === 'en' ? 'Dark Mode' : 'Mode Gelap'}</span>
+                                <span className="text-sm text-gray-500">{(t as any).themeDesc}</span>
                               </div>
-                              <div className="w-12 h-6 bg-gray-200 rounded-full flex items-center p-1">
-                                <div className="w-4 h-4 bg-white rounded-full"></div>
+                              <div className={`w-14 h-7 rounded-full flex items-center p-1 transition-colors duration-300 ${isDarkMode ? 'bg-blue-500' : 'bg-gray-300'}`}>
+                                <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${isDarkMode ? 'translate-x-[26px]' : 'translate-x-0'}`}></div>
                               </div>
                             </div>
                          </div>
                          
                          <div className="pt-6 border-t border-gray-100 flex flex-col items-center justify-center gap-2">
                             <span className="text-sm text-gray-400 font-medium tracking-wide">{(t as any).appVersion || "App Version"} 1.2.0</span>
-                            <span className="text-xs text-gray-300">© 2026 SuperAI. All rights reserved.</span>
+                            <span className="text-xs text-gray-300">© 2026 SuperRinz | SuperAI Inc.</span>
                          </div>
                       </div>
                     </motion.div>
@@ -2824,6 +2849,83 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {showClearConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className={`backdrop-blur-xl border shadow-2xl rounded-[32px] p-6 w-full max-w-sm flex flex-col items-center text-center ${isDarkMode ? 'bg-slate-900/80 border-white/10 text-white' : 'bg-white/80 border-white/40 text-gray-900'}`}
+            >
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-5 ${isDarkMode ? 'bg-red-500/20' : 'bg-red-100'}`}>
+                <Trash2 className={`w-8 h-8 ${isDarkMode ? 'text-red-400' : 'text-red-500'}`} />
+              </div>
+              <h3 className="text-xl font-bold mb-2">{(t as any).clearHistoryTitle || 'Hapus Semua Riwayat'}</h3>
+              <p className={`text-sm mb-8 leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
+                {t.confirmClear}
+              </p>
+              
+              <div className="flex flex-col gap-3 w-full">
+                <button
+                  onClick={handleClearAllHistory}
+                  disabled={isClearingHistory}
+                  className="w-full py-3.5 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-bold tracking-wide transition-colors flex items-center justify-center disabled:opacity-50"
+                >
+                  {isClearingHistory ? <Loader2 className="w-5 h-5 animate-spin" /> : (t as any).clearHistoryTitle || 'Hapus Semua Riwayat'}
+                </button>
+                <button
+                  onClick={() => setShowClearConfirm(false)}
+                  disabled={isClearingHistory}
+                  className={`w-full py-3.5 rounded-2xl font-bold tracking-wide transition-colors ${isDarkMode ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-gray-200/60 hover:bg-gray-300/60 text-gray-800'}`}
+                >
+                  {t.cancel}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showClearSuccess && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className={`backdrop-blur-xl border shadow-2xl rounded-[32px] p-8 w-full max-w-sm flex flex-col items-center text-center ${isDarkMode ? 'bg-slate-900/80 border-white/10 text-white' : 'bg-white/80 border-white/40 text-gray-900'}`}
+            >
+              <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-inner ${isDarkMode ? 'bg-green-500/20 shadow-green-500/10' : 'bg-green-100 shadow-green-200'}`}>
+                <Check className={`w-10 h-10 ${isDarkMode ? 'text-green-400' : 'text-green-500'}`} strokeWidth={3} />
+              </div>
+              <h3 className="text-2xl font-bold mb-3">Berhasil</h3>
+              <p className={`text-base mb-8 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
+                {t.clearSuccess}
+              </p>
+              
+              <button
+                onClick={() => setShowClearSuccess(false)}
+                className="w-full py-3.5 rounded-2xl bg-blue-500 hover:bg-blue-600 text-white font-bold tracking-wide transition-colors"
+              >
+                Selesai
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
      </div>
     </div>
   );
