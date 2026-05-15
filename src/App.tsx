@@ -534,10 +534,13 @@ export default function App() {
 
   const [customPhotoURL, setCustomPhotoURL] = useState<string | null>(null);
   const [customDisplayName, setCustomDisplayName] = useState<string | null>(null);
+  const [userBio, setUserBio] = useState<string | null>(null);
   const [userCredits, setUserCredits] = useState<number>(300);
   const [userFreeCredits, setUserFreeCredits] = useState<number>(200);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState("");
+  const [isEditingBio, setIsEditingBio] = useState(false);
+  const [editBioValue, setEditBioValue] = useState("");
   const profileInputRef = useRef<HTMLInputElement>(null);
 
   // Attachments State
@@ -584,6 +587,7 @@ export default function App() {
         const data = docSnap.data();
         if (data.photoURL) setCustomPhotoURL(data.photoURL);
         if (data.displayName) setCustomDisplayName(data.displayName);
+        if (data.bio) setUserBio(data.bio);
         
         let shouldUpdate = false;
         let pCredits = data.credits !== undefined ? data.credits : 50;
@@ -643,6 +647,18 @@ export default function App() {
       setIsEditingName(false);
     } catch (error) {
       console.error("Error updating display name", error);
+    }
+  };
+
+  const handleSaveBio = async () => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, "users", user.uid), {
+        bio: editBioValue.trim()
+      }, { merge: true });
+      setIsEditingBio(false);
+    } catch (error) {
+      console.error("Error updating bio", error);
     }
   };
 
@@ -2643,6 +2659,45 @@ export default function App() {
                    </div>
                  )}
                  <p className="text-sm sm:text-base text-gray-500 mt-1.5 font-medium tracking-wide">{t.dearUser}</p>
+                 
+                 {isEditingBio ? (
+                   <div className="flex flex-col items-center gap-2 w-full mt-4">
+                     <textarea
+                       value={editBioValue}
+                       onChange={(e) => setEditBioValue(e.target.value)}
+                       className="w-full max-w-[300px] text-center px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-700 resize-none h-20"
+                       placeholder={language === 'en' ? 'Write a short bio...' : 'Tulis bio singkat...'}
+                       autoFocus
+                     />
+                     <div className="flex items-center gap-2">
+                       <button onClick={handleSaveBio} className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 font-medium">{language === 'en' ? 'Save' : 'Simpan'}</button>
+                       <button onClick={() => setIsEditingBio(false)} className="text-xs bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-300 font-medium">{language === 'en' ? 'Cancel' : 'Batal'}</button>
+                     </div>
+                   </div>
+                 ) : (
+                   <div className="flex items-center justify-center group/bio cursor-pointer mt-3 relative max-w-[300px] text-center" onClick={() => { setEditBioValue(userBio || ''); setIsEditingBio(true); }}>
+                     <p className={`text-sm ${userBio ? 'text-gray-700' : 'text-gray-400 italic'}`}>
+                       {userBio || (language === 'en' ? 'Add a short bio...' : 'Tambahkan bio singkat...')}
+                     </p>
+                     <div className="opacity-0 group-hover/bio:opacity-100 transition-opacity p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-200 absolute -right-8 top-1/2 -translate-y-1/2">
+                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                     </div>
+                   </div>
+                 )}
+               </div>
+
+               {/* Activity Stats */}
+               <div className="grid grid-cols-2 gap-4 mb-6 sm:mb-8">
+                 <div className="bg-white border border-gray-100/80 rounded-[2rem] p-5 shadow-sm flex flex-col items-center justify-center text-center">
+                   <MessageSquare className="w-6 h-6 text-blue-500 mb-2" />
+                   <span className="text-2xl font-bold text-gray-800">{chats.length}</span>
+                   <span className="text-xs text-gray-500 font-medium uppercase tracking-wider mt-1">{language === 'en' ? 'Total Chats' : 'Total Obrolan'}</span>
+                 </div>
+                 <div className="bg-white border border-gray-100/80 rounded-[2rem] p-5 shadow-sm flex flex-col items-center justify-center text-center">
+                   <Sparkles className="w-6 h-6 text-amber-500 mb-2" />
+                   <span className="text-2xl font-bold text-gray-800">{userCredits}</span>
+                   <span className="text-xs text-gray-500 font-medium uppercase tracking-wider mt-1">{language === 'en' ? 'Credits Left' : 'Kredit Tersisa'}</span>
+                 </div>
                </div>
 
                {/* Premium/Free Card */}
