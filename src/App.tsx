@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { Info, Shield, Layers, HelpCircle, ChevronRight, ArrowLeft, Sparkles, Mic, ChevronDown, Menu, Frame, SquareArrowUpRight, Bot, Check, Copy, MessageSquare, Trash2, LogOut, X, Search, Mail, Lock, Eye, Globe, Camera, Image as ImageIcon, FileText, Paperclip, Plus, Crown, ThumbsUp, Share2, Palette, BookOpen, MonitorPlay, Table, Briefcase, Download, Square, Loader2, Map as MapIcon, CloudSun, Calendar, Clock } from "lucide-react";
+import { Info, Shield, Layers, HelpCircle, ChevronRight, ArrowLeft, Sparkles, Mic, ChevronDown, Menu, Frame, SquareArrowUpRight, Bot, Check, Copy, MessageSquare, Trash2, LogOut, X, Search, Mail, Lock, Eye, Globe, Camera, Image as ImageIcon, FileText, Paperclip, Plus, Crown, ThumbsUp, Share2, Palette, BookOpen, MonitorPlay, Table, Briefcase, Download, Square, Loader2, Map as MapIcon, CloudSun, Calendar, Clock, SlidersHorizontal, LayoutTemplate } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { auth, db, googleAuthProvider, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
@@ -11,6 +11,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import html2pdf from 'html2pdf.js';
 import pptxgen from "pptxgenjs";
+import { CVPreview } from './components/CVPreview';
 
 const TextAlignStartIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 5H3"/><path d="M15 12H3"/><path d="M17 19H3"/></svg>
@@ -90,8 +91,28 @@ const TRANSLATIONS = {
     exportDataTitle: "Ekspor Data",
     exportDataDesc: "Unduh semua riwayat chat Anda secara offline sebagai file JSON.",
     appVersion: "Versi Aplikasi",
-    themeTitle: "Pilih Tema",
+    themeTitle: "Tema Tampilan",
     themeDesc: "Berganti tampilan aplikasi ke mode Gelap.",
+    textSizeTitle: "Ukuran Teks Obrolan",
+    textSizeDesc: "Ubah ukuran huruf pada chat.",
+    textSizeSmall: "Kecil",
+    textSizeNormal: "Normal",
+    textSizeLarge: "Besar",
+    defaultModelTitle: "Model Default",
+    defaultModelDesc: "Pilih model kecerdasan buatan default saat aplikasi dibuka.",
+    defaultModeTitle: "Mode Default",
+    defaultModeDesc: "Pilih mode default (Chat, Gambar, dll) saat aplikasi dibuka.",
+    customInstructionsTitle: "Instruksi Khusus (Custom Instructions)",
+    customInstructionsDesc: "Beri tahu AI bagaimana Anda ingin dilayani (misalnya memanggil dengan panggilan tertentu, gaya bahasa).",
+    customInstructionsPlaceholder: "Contoh: Panggil saya Boss, gunakan bahasa yang santai...",
+    exportFormatTitle: "Format Data Ekspor",
+    exportFormatDesc: "Pilih format file untuk mengunduh riwayat obrolan Anda.",
+    soundTitle: "Notifikasi Suara",
+    soundDesc: "Putar suara kecil ketika AI selesai menjawab.",
+    hapticsTitle: "Notifikasi Getaran",
+    hapticsDesc: "Gunakan getaran perangkat jika tersedia.",
+    personalizationTitle: "Personalisasi & Profil AI",
+    notificationsTitle: "Suara & Getaran",
     confirmClear: "Apakah Anda yakin ingin menghapus SEMUA riwayat chat Anda? Tindakan ini tidak dapat dibatalkan.",
     clearSuccess: "Semua riwayat chat Anda berhasil dihapus.",
   },
@@ -154,6 +175,26 @@ const TRANSLATIONS = {
     appVersion: "App Version",
     themeTitle: "Theme",
     themeDesc: "Switch application appearance to Dark mode.",
+    textSizeTitle: "Chat Text Size",
+    textSizeDesc: "Change text size in chat.",
+    textSizeSmall: "Small",
+    textSizeNormal: "Normal",
+    textSizeLarge: "Large",
+    defaultModelTitle: "Default Model",
+    defaultModelDesc: "Select the default AI model when the app opens.",
+    defaultModeTitle: "Default Mode",
+    defaultModeDesc: "Select the default mode (Chat, Image, etc.) when the app opens.",
+    customInstructionsTitle: "Custom Instructions",
+    customInstructionsDesc: "Tell the AI how you want to be served (e.g., tone of voice).",
+    customInstructionsPlaceholder: "Example: Call me Boss, use a casual tone...",
+    exportFormatTitle: "Export Data Format",
+    exportFormatDesc: "Choose a file format to download your chat history.",
+    soundTitle: "Sound Notifications",
+    soundDesc: "Play a short sound when the AI finishes replying.",
+    hapticsTitle: "Haptics & Vibrations",
+    hapticsDesc: "Use device vibration if available.",
+    personalizationTitle: "Personalization & AI Profile",
+    notificationsTitle: "Sound & Haptics",
     confirmClear: "Are you sure you want to delete ALL your chat history? This action cannot be undone.",
     clearSuccess: "All your chat history has been deleted successfully.",
   }
@@ -172,6 +213,10 @@ const CodeBlock = ({ node, inline, className, children, ...props }: any) => {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  if (match && match[1] === 'jsoncv') {
+    return <CVPreview data={String(children)} />;
+  }
 
   return !inline && match ? (
     <div className="relative group rounded-xl overflow-hidden my-5 border border-gray-700/30">
@@ -396,7 +441,8 @@ export default function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const isAutoScrollPaused = useRef(false);
+  const isAutoScrollPausedRef = useRef(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   
   // Auth & Chat State
   const [user, setUser] = useState<User | null>(null);
@@ -411,7 +457,9 @@ export default function App() {
   const [loadingText, setLoadingText] = useState("Berfikir...");
   const [loadingIconType, setLoadingIconType] = useState<"none" | "map" | "calendar" | "weather" | "time" | "google">("none");
   const [pendingMediaTask, setPendingMediaTask] = useState<'generate_image' | 'search_image' | null>(null);
-  const [appMode, setAppMode] = useState<"chat" | "generate_image" | "search_image" | "learn" | "slide" | "sheet" | "cv">("chat");
+  const [appMode, setAppMode] = useState<"chat" | "generate_image" | "search_image" | "learn" | "slide" | "sheet" | "cv">(() => {
+    return (localStorage.getItem("app_mode") as "chat" | "generate_image" | "search_image" | "learn" | "slide" | "sheet" | "cv") || "chat";
+  });
   const [slideCount, setSlideCount] = useState<number>(5);
   const [slideImageMedia, setSlideImageMedia] = useState<'ai' | 'search'>('ai');
   const [slideTaskState, setSlideTaskState] = useState<'idle' | 'outline' | 'composing' | 'rendering' | 'done'>('idle');
@@ -422,7 +470,23 @@ export default function App() {
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<any>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const [aiModel, setAiModel] = useState<"gemini-2.5-flash" | "gemini-2.5-pro">("gemini-2.5-flash");
+  const [aiModel, setAiModel] = useState<"gemini-2.5-flash" | "gemini-2.5-pro">(() => {
+    return (localStorage.getItem("app_ai_model") as "gemini-2.5-flash" | "gemini-2.5-pro") || "gemini-2.5-flash";
+  });
+  const [customInstructions, setCustomInstructions] = useState<string>(() => {
+    return localStorage.getItem("app_custom_instructions") || "";
+  });
+  const [exportFormat, setExportFormat] = useState<"json" | "txt" | "md">(() => {
+    return (localStorage.getItem("app_export_format") as "json" | "txt" | "md") || "json";
+  });
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    const val = localStorage.getItem("app_sound_enabled");
+    return val !== null ? val === "true" : true;
+  });
+  const [hapticsEnabled, setHapticsEnabled] = useState<boolean>(() => {
+    const val = localStorage.getItem("app_haptics_enabled");
+    return val !== null ? val === "true" : true;
+  });
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [profileTab, setProfileTab] = useState<"profile" | "settings">("profile");
@@ -430,10 +494,41 @@ export default function App() {
   const [language, setLanguage] = useState<"id" | "en">(() => {
     return (localStorage.getItem("app_language") as "id" | "en") || "id";
   });
+  const [textSize, setTextSize] = useState<"small" | "normal" | "large">(() => {
+    return (localStorage.getItem("app_text_size") as "small" | "normal" | "large") || "normal";
+  });
   
   useEffect(() => {
     localStorage.setItem("app_language", language);
   }, [language]);
+
+  useEffect(() => {
+    localStorage.setItem("app_text_size", textSize);
+  }, [textSize]);
+
+  useEffect(() => {
+    localStorage.setItem("app_ai_model", aiModel);
+  }, [aiModel]);
+
+  useEffect(() => {
+    localStorage.setItem("app_custom_instructions", customInstructions);
+  }, [customInstructions]);
+
+  useEffect(() => {
+    localStorage.setItem("app_export_format", exportFormat);
+  }, [exportFormat]);
+
+  useEffect(() => {
+    localStorage.setItem("app_sound_enabled", soundEnabled.toString());
+  }, [soundEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem("app_haptics_enabled", hapticsEnabled.toString());
+  }, [hapticsEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem("app_mode", appMode);
+  }, [appMode]);
   
   const t = TRANSLATIONS[language];
 
@@ -484,21 +579,38 @@ export default function App() {
       return;
     }
     const unsubscribe = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
+      const today = new Date().toDateString();
       if (docSnap.exists()) {
         const data = docSnap.data();
         if (data.photoURL) setCustomPhotoURL(data.photoURL);
         if (data.displayName) setCustomDisplayName(data.displayName);
-        if (data.credits !== undefined) setUserCredits(data.credits);
-        else {
-          setUserCredits(300);
-          if (user.email !== 'cipaonly08@gmail.com') {
-             setDoc(doc(db, "users", user.uid), { credits: 300, freeCredits: 200 }, { merge: true });
-          }
+        
+        let shouldUpdate = false;
+        let pCredits = data.credits !== undefined ? data.credits : 50;
+        let pFreeCredits = data.freeCredits !== undefined ? data.freeCredits : 20;
+        let pLastReset = data.lastResetDate;
+
+        if (data.credits === undefined) shouldUpdate = true;
+        if (data.freeCredits === undefined) shouldUpdate = true;
+
+        if (pLastReset !== today) {
+           pFreeCredits = 20;
+           pLastReset = today;
+           shouldUpdate = true;
         }
-        if (data.freeCredits !== undefined) setUserFreeCredits(data.freeCredits);
+
+        setUserCredits(pCredits);
+        setUserFreeCredits(pFreeCredits);
+
+        if (shouldUpdate && user.email !== 'cipaonly08@gmail.com') {
+           setDoc(doc(db, "users", user.uid), { credits: pCredits, freeCredits: pFreeCredits, lastResetDate: pLastReset }, { merge: true });
+        }
       } else {
         if (user.email !== 'cipaonly08@gmail.com') {
-          setDoc(doc(db, "users", user.uid), { credits: 300, freeCredits: 200 }, { merge: true });
+          setDoc(doc(db, "users", user.uid), { credits: 50, freeCredits: 20, lastResetDate: today }, { merge: true });
+        } else {
+          setUserCredits(300);
+          setUserFreeCredits(200);
         }
       }
     }, (error) => handleFirestoreError(error, OperationType.GET, "users"));
@@ -538,8 +650,12 @@ export default function App() {
   const displayDisplayName = customDisplayName || user?.displayName || 'User';
 
   const scrollToBottom = (force = false) => {
-    if (force || !isAutoScrollPaused.current) {
+    if (force || !isAutoScrollPausedRef.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: force ? "smooth" : "auto" });
+      if (force) {
+        isAutoScrollPausedRef.current = false;
+        setShowScrollButton(false);
+      }
     }
   };
 
@@ -645,19 +761,49 @@ export default function App() {
       const exportObject = {
         user: { name: displayDisplayName, email: user.email },
         chats: chats.map(c => ({
-          ...c,
-          createdAt: c.createdAt?.toDate?.() || new Date(),
-          updatedAt: c.updatedAt?.toDate?.() || new Date()
+          title: c.title,
+          createdAt: c.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+          messages: messages[c.id] || []
         }))
       };
-      
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObject, null, 2));
-      const downloadAnchorNode = document.createElement('a');
-      downloadAnchorNode.setAttribute("href",     dataStr);
-      downloadAnchorNode.setAttribute("download", "superai_export_" + new Date().getTime() + ".json");
-      document.body.appendChild(downloadAnchorNode); // required for firefox
-      downloadAnchorNode.click();
-      downloadAnchorNode.remove();
+
+      let content = "";
+      let mimeType = "";
+      let fileExt = "";
+
+      if (exportFormat === "json") {
+        content = JSON.stringify(exportObject, null, 2);
+        mimeType = "application/json";
+        fileExt = "json";
+      } else if (exportFormat === "txt") {
+        content = `User: ${exportObject.user.name} (${exportObject.user.email})\n\n`;
+        exportObject.chats.forEach(chat => {
+          content += `--- Chat: ${chat.title} (${chat.createdAt}) ---\n`;
+          chat.messages.forEach(msg => {
+            content += `${msg.role.toUpperCase()}: ${msg.text}\n\n`;
+          });
+        });
+        mimeType = "text/plain";
+        fileExt = "txt";
+      } else if (exportFormat === "md") {
+        content = `# User: ${exportObject.user.name} (${exportObject.user.email})\n\n`;
+        exportObject.chats.forEach(chat => {
+          content += `## Chat: ${chat.title} (${chat.createdAt})\n\n`;
+          chat.messages.forEach(msg => {
+            content += `**${msg.role.toUpperCase()}**:\n${msg.text}\n\n`;
+          });
+        });
+        mimeType = "text/markdown";
+        fileExt = "md";
+      }
+
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `superai_export_${new Date().toISOString().split("T")[0]}.${fileExt}`;
+      a.click();
+      URL.revokeObjectURL(url);
     } catch(e) {
       console.error("Export error", e);
     }
@@ -722,11 +868,13 @@ export default function App() {
     // Credit Logic
     const isDeveloper = user.email === 'cipaonly08@gmail.com';
     let cost = 0;
-    if (aiModel === "gemini-2.5-pro" && !isDeveloper) {
-      cost = Math.max(1, Math.ceil(newMessageText.length / 50));
+    if (!isDeveloper) {
+      if (appMode !== 'chat') cost += 2; // Feature usages cost
+      if (aiModel === "gemini-2.5-pro") cost += 5; // Pro model cost
+      
       const totalCredits = userCredits + userFreeCredits;
       if (totalCredits < cost) {
-        alert(t.insufficientCredit);
+        alert("Poin Anda tidak mencukupi.\n\nJika menggunakan model Pro, silakan ganti ke model SuperAI-V5. Jika Anda menggunakan fitur khusus (Slide, CV, dll), fitur tersebut membutuhkan Poin dan sudah habis.");
         return;
       }
     }
@@ -1140,9 +1288,13 @@ export default function App() {
       if (appMode === 'learn') {
          sysInstruction = locationContext + "Anda adalah seorang guru profesional yang cerdas, interaktif, dan menyenangkan. Pengguna akan memberikan topik yang ingin mereka pelajari. Tugas Anda: 1. Menjelaskan materi dengan singkat, padat, dan seru. 2. Memberikan kuis pilihan ganda (A, B, C, D) untuk menguji pemahaman pengguna. 3. Bereaksi secara interaktif terhadap jawaban pengguna (memberikan pujian/poin jika benar, koreksi dan penjelasan jika salah). 4. Menyediakan tugas harian atau latihan tambahan asyik untuk dikerjakan. 5. Selalu gunakan format markdown dengan blok kutipan atau formatting yang rapi. 6. Pastikan opsi kuis A, B, C, D mudah diidentifikasi (gunakan list markdown). Jangan selalu mengulang instruksi, langsung mulai pelajaran atau permainan/kuis pilihan ganda ketika ada input. Jadikan simulasi belajar ini seperti game seru!";
       } else if (appMode === 'cv') {
-         sysInstruction = locationContext + "Anda adalah seorang asisten pembuat Curriculum Vitae (CV) dan resume profesional yang terampil (ATS Friendly). Pengguna akan memberikan data diri, riwayat pendidikan, pengalaman kerja, keahlian, dll. Tugas Anda: 1. Susun dokumen CV profesional untuk pengguna menggunakan format Markdown. 2. Gunakan heading yang jelas (Summary, Experience, Education, Skills). 3. Pilih kata-kata yang kuat dan deskripsi pekerjaan yang profesional asalkan sesuai dengan data pengguna. 4. Apabila data kurang lengkap, berikan kerangka CV (template) dan minta pengguna untuk melengkapinya.";
+         sysInstruction = locationContext + "Anda adalah seorang asisten pembuat Curriculum Vitae (CV) dan resume profesional yang terampil (ATS Friendly). Tugas pertama Anda adalah memandu pengguna menyusun CV jika data mereka belum lengkap. Tanyakan secara proaktif namun bertahap (jangan sekaligus banyak) informasi seperti: Nama lengkap, kontak, profil/summary singkat, riwayat pendidikan, pengalaman kerja, keahlian, dan proyek. Jika pengguna kebingungan, berikan contoh singkat. Jika data sudah dirasa cukup untuk dibuatkan CV ATAU pengguna meminta untuk langsung dibuatkan dengan data seadanya, Tugas Anda selanjutnya: 1. Susun dokumen CV profesional untuk pengguna menggunakan format JSON yang valid. 2. Output HANYA code box JSON (```jsoncv\n...\n```) yang memuat skema untuk CVPreview. Berikut struktur JSON yang wajib ditaati: {\n\"personalInfo\": { \"name\": \"\", \"email\": \"\", \"phone\": \"\", \"location\": \"\", \"linkedin\": \"\", \"portfolio\": \"\", \"summary\": \"\" },\n\"experience\": [{ \"role\": \"\", \"company\": \"\", \"location\": \"\", \"startDate\": \"\", \"endDate\": \"\", \"description\": [\"\"] }],\n\"education\": [{ \"degree\": \"\", \"institution\": \"\", \"location\": \"\", \"startDate\": \"\", \"endDate\": \"\", \"gpa\": \"\" }],\n\"skills\": [{ \"category\": \"\", \"items\": [\"\"] }],\n\"projects\": [{ \"name\": \"\", \"description\": \"\", \"technologies\": [\"\"], \"link\": \"\" }]\n}. Anda juga boleh menyertakan teks panduan atau saran di luar kode JSON tersebut untuk membantu pengguna menyempurnakannya.";
       } else if (aiModel === 'gemini-2.5-pro') {
          sysInstruction += " Kamu harus MENGKOMUNIKASIKAN proses berpikirmu sebelum menjawab pertanyaan. Untuk melakukan hal ini, selalu awali responmu dengan TAG <thinking> dan tutup dengan </thinking> dan isi didalamnya dengan analisis, penalaran, atau rencana kamu. Pastikan untuk MENGGUNAKAN format markdown di dalam tag thinking.";
+      }
+
+      if (customInstructions.trim() !== '') {
+         sysInstruction += "\n\nInstruksi Tambahan dari Pengguna untuk Kamu (Penting! Patuhi apapun kondisinya):\n" + customInstructions.trim();
       }
 
       const response = await ai.models.generateContentStream({
@@ -1195,6 +1347,45 @@ export default function App() {
       setStreamingMessageId(null);
       setStreamingText(null);
 
+      // Play sound notification if enabled
+      if (soundEnabled) {
+        try {
+          const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+          if (AudioContext) {
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+
+            osc.type = 'sine';
+            // A gentle, high pitch "ting" sound
+            osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
+
+            gainNode.gain.setValueAtTime(0, ctx.currentTime);
+            // Quick attack
+            gainNode.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.05);
+            // Smooth decay
+            gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+
+            osc.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.3);
+          }
+        } catch (e) {
+          console.error("Audio playback failed", e);
+        }
+      }
+
+      // Vibrate if haptics enabled
+      if (hapticsEnabled && navigator.vibrate) {
+        try {
+          navigator.vibrate(50); // Small buzz
+        } catch (e) {
+          console.error("Haptics failed", e);
+        }
+      }
+
     } catch (error: any) {
       console.error("Error generating response:", error);
       if (error.name !== 'AbortError' && !abortControllerRef.current?.signal.aborted) {
@@ -1202,13 +1393,6 @@ export default function App() {
       }
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
     }
   };
 
@@ -1378,7 +1562,12 @@ export default function App() {
         onScroll={(e) => {
           const target = e.target as HTMLDivElement;
           const isAtBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 100;
-          isAutoScrollPaused.current = !isAtBottom;
+          isAutoScrollPausedRef.current = !isAtBottom;
+          if (!isAtBottom && !showScrollButton) {
+            setShowScrollButton(true);
+          } else if (isAtBottom && showScrollButton) {
+            setShowScrollButton(false);
+          }
         }}
         className="flex-1 overflow-y-auto px-4 sm:px-6 pb-48"
       >
@@ -1466,7 +1655,9 @@ export default function App() {
                              ))}
                           </div>
                         )}
-                        <div className="bg-gray-100 text-gray-900 px-5 py-3.5 rounded-3xl rounded-tr-md text-[1.1rem] sm:text-[1.15rem] leading-relaxed text-left whitespace-pre-wrap font-medium select-text max-w-full overflow-hidden shadow-sm border border-gray-200/50">
+                        <div 
+                          className={`bg-gray-100 text-gray-900 px-5 py-3.5 rounded-3xl rounded-tr-md leading-relaxed text-left whitespace-pre-wrap font-medium select-text max-w-full overflow-hidden shadow-sm border border-gray-200/50 ${textSize === 'small' ? 'text-[0.95rem]' : textSize === 'large' ? 'text-[1.25rem]' : 'text-[1.1rem] sm:text-[1.15rem]'}`}
+                        >
                           {message.text}
                         </div>
                       </div>
@@ -1658,7 +1849,10 @@ export default function App() {
                               <img src="/logo.png" alt="Logo" className="w-8 h-8 shrink-0 object-contain" />
                               <span className="font-semibold text-gray-800 text-[1.05rem]">SuperAI</span>
                             </div>
-                            <div className="markdown-body w-full max-w-full overflow-x-auto text-gray-800 pl-11">
+                            <div 
+                              className="markdown-body w-full max-w-full overflow-x-auto text-gray-800 pl-11"
+                              style={{ fontSize: textSize === 'small' ? '0.9rem' : textSize === 'large' ? '1.25rem' : '1.05rem' }}
+                            >
                                {(() => {
                                  const rawText = message.id === streamingMessageId && streamingText !== null ? streamingText : message.text;
                                  let textToRender = rawText;
@@ -2136,6 +2330,25 @@ export default function App() {
         </div>
       </main>
 
+      {/* Floating Scroll Button */}
+      <AnimatePresence>
+        {showScrollButton && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 10 }}
+            className="absolute z-30 right-4 sm:right-8 bottom-[110px] sm:bottom-[120px] transition-all"
+          >
+            <button
+              onClick={() => scrollToBottom(true)}
+              className="bg-white/90 backdrop-blur border border-gray-200 text-gray-700 shadow-lg rounded-full p-2.5 hover:bg-gray-100 hover:text-gray-900 transition-all flex items-center justify-center group"
+            >
+              <ChevronDown className="w-5 h-5 text-gray-600 group-hover:text-gray-900" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Input Dock */}
       <div className={`absolute inset-x-0 bottom-0 bg-gradient-to-t pt-10 pb-6 px-4 sm:px-6 z-20 ${isDarkMode ? 'from-[#121212] via-[#121212] to-transparent' : 'from-[#f4f7fb] via-[#f4f7fb] to-transparent'}`}>
         <div className="max-w-3xl mx-auto relative group">
@@ -2194,7 +2407,6 @@ export default function App() {
               ref={textareaRef}
               value={inputValue}
               onChange={handleInput}
-              onKeyDown={handleKeyDown}
               placeholder={appMode === 'learn' ? "Apa yang ingin dipelajari hari ini?" : appMode === 'generate_image' ? "Deskripsikan gambar yang ingin dibuat..." : appMode === 'search_image' ? "Apa yang ingin Anda cari..." : appMode === 'slide' ? "Topik presentasi apa yang ingin dibuat..." : appMode === 'sheet' ? "Data tabel apa yang ingin dibuat..." : appMode === 'cv' ? "Siapa nama dan data diri untuk CV ini..." : t.typeMessage}
               rows={1}
               className="w-full bg-transparent resize-none outline-none px-4 pt-3 pb-2 text-[1.05rem] text-gray-900 placeholder:text-gray-500 overflow-hidden"
@@ -2249,11 +2461,11 @@ export default function App() {
                       >
                          <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'generate_image' ? 'chat' : 'generate_image'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'generate_image' ? 'bg-blue-100/50' : 'hover:bg-gray-50'}`}>
                            <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'generate_image' ? 'bg-blue-500 text-white' : 'bg-blue-50/80 text-blue-500 group-hover:bg-blue-100'}`}><Palette className="w-5 h-5"/></div>
-                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Buat<br/>Gambar</span>
+                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Buat Gambar</span>
                          </button>
                          <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'search_image' ? 'chat' : 'search_image'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'search_image' ? 'bg-orange-100/50' : 'hover:bg-gray-50'}`}>
                            <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'search_image' ? 'bg-orange-500 text-white' : 'bg-orange-50/80 text-orange-500 group-hover:bg-orange-100'}`}><Search className="w-5 h-5"/></div>
-                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Cari<br/>Gambar</span>
+                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Cari Gambar</span>
                          </button>
                          <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'learn' ? 'chat' : 'learn'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'learn' ? 'bg-green-100/50' : 'hover:bg-gray-50'}`}>
                            <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'learn' ? 'bg-green-500 text-white' : 'bg-green-50/80 text-green-500 group-hover:bg-green-100'}`}><BookOpen className="w-5 h-5"/></div>
@@ -2560,7 +2772,7 @@ export default function App() {
                              className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${language === 'id' ? 'border-blue-500 bg-blue-50/50' : 'border-gray-100 hover:bg-gray-50'}`}
                            >
                              <div className="flex items-center gap-3">
-                               <span className="text-2xl">🇮🇩</span>
+                               <Globe className={`w-5 h-5 ${language === 'id' ? 'text-blue-500' : 'text-gray-400'}`} />
                                <span className={`font-semibold ${language === 'id' ? 'text-blue-700' : 'text-gray-800'}`}>Indonesia</span>
                              </div>
                              {language === 'id' && <Check className="w-5 h-5 text-blue-600" />}
@@ -2570,11 +2782,110 @@ export default function App() {
                              className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${language === 'en' ? 'border-blue-500 bg-blue-50/50' : 'border-gray-100 hover:bg-gray-50'}`}
                            >
                              <div className="flex items-center gap-3">
-                               <span className="text-2xl">🇬🇧</span>
+                               <Globe className={`w-5 h-5 ${language === 'en' ? 'text-blue-500' : 'text-gray-400'}`} />
                                <span className={`font-semibold ${language === 'en' ? 'text-blue-700' : 'text-gray-800'}`}>English</span>
                              </div>
                              {language === 'en' && <Check className="w-5 h-5 text-blue-600" />}
                            </button>
+                         </div>
+
+                         <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5 mt-8">
+                           <SlidersHorizontal className="w-4 h-4" /> {(t as any).personalizationTitle}
+                         </h4>
+                         <div className="flex flex-col gap-3 mb-8">
+                            <div className="w-full p-4 rounded-2xl border border-gray-100 bg-gray-50 mt-2">
+                              <div className="flex flex-col gap-1 mb-4 select-none">
+                                <span className="font-semibold text-gray-800">{(t as any).customInstructionsTitle}</span>
+                                <span className="text-sm text-gray-500">{(t as any).customInstructionsDesc}</span>
+                              </div>
+                              <textarea
+                                value={customInstructions}
+                                onChange={(e) => setCustomInstructions(e.target.value)}
+                                placeholder={(t as any).customInstructionsPlaceholder}
+                                className="w-full bg-white border border-gray-200 rounded-xl p-3 text-sm text-gray-700 min-h-[100px] resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                              />
+                            </div>
+                         </div>
+
+                         <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5 mt-8">
+                           <Sparkles className="w-4 h-4" /> {(t as any).notificationsTitle}
+                         </h4>
+                         <div className="flex flex-col gap-3 mb-8">
+                            <div 
+                              onClick={() => setSoundEnabled(!soundEnabled)}
+                              className="w-full flex items-center justify-between p-4 rounded-2xl border border-gray-100 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                            >
+                              <div className="flex flex-col gap-1 select-none">
+                                <span className="font-semibold text-gray-800">{(t as any).soundTitle}</span>
+                                <span className="text-sm text-gray-500">{(t as any).soundDesc}</span>
+                              </div>
+                              <div className={`w-14 h-7 rounded-full flex items-center p-1 transition-colors duration-300 ${soundEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}>
+                                <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${soundEnabled ? 'translate-x-[26px]' : 'translate-x-0'}`}></div>
+                              </div>
+                            </div>
+                            <div 
+                              onClick={() => setHapticsEnabled(!hapticsEnabled)}
+                              className="w-full flex items-center justify-between p-4 rounded-2xl border border-gray-100 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors mt-2"
+                            >
+                              <div className="flex flex-col gap-1 select-none">
+                                <span className="font-semibold text-gray-800">{(t as any).hapticsTitle}</span>
+                                <span className="text-sm text-gray-500">{(t as any).hapticsDesc}</span>
+                              </div>
+                              <div className={`w-14 h-7 rounded-full flex items-center p-1 transition-colors duration-300 ${hapticsEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}>
+                                <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${hapticsEnabled ? 'translate-x-[26px]' : 'translate-x-0'}`}></div>
+                              </div>
+                            </div>
+                         </div>
+
+                         <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5">
+                           <Layers className="w-4 h-4" /> {language === 'en' ? 'Data & Storage' : 'Data & Penyimpanan'}
+                         </h4>
+                         <div className="flex flex-col gap-3 mb-8">
+                            <div className="w-full p-4 rounded-2xl border border-gray-100 bg-gray-50 mt-2">
+                              <div className="flex flex-col gap-1 mb-4 select-none">
+                                <span className="font-semibold text-gray-800">{(t as any).exportFormatTitle}</span>
+                                <span className="text-sm text-gray-500">{(t as any).exportFormatDesc}</span>
+                              </div>
+                              <div className="flex bg-gray-200/60 p-1.5 rounded-xl text-sm font-medium">
+                                <button 
+                                  onClick={() => setExportFormat('json')}
+                                  className={`flex-1 py-2 px-3 rounded-lg transition-all ${exportFormat === 'json' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                                >
+                                  JSON
+                                </button>
+                                <button 
+                                  onClick={() => setExportFormat('txt')}
+                                  className={`flex-1 py-2 px-3 rounded-lg transition-all ${exportFormat === 'txt' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                                >
+                                  TXT
+                                </button>
+                                <button 
+                                  onClick={() => setExportFormat('md')}
+                                  className={`flex-1 py-2 px-3 rounded-lg transition-all ${exportFormat === 'md' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                                >
+                                  Markdown
+                                </button>
+                              </div>
+                            </div>
+
+                            <button onClick={handleExportData} className="w-full text-left flex items-center gap-4 hover:bg-gray-50 p-4 rounded-2xl transition-colors border border-gray-100 group">
+                              <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform">
+                                <Download className="w-5 h-5" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">{t.exportDataTitle}</div>
+                                <div className="text-[13px] text-gray-500 mt-0.5">{t.exportDataDesc}</div>
+                              </div>
+                            </button>
+                            <button onClick={confirmClearAllHistory} disabled={isClearingHistory} className="w-full text-left flex items-center gap-4 hover:bg-red-50 p-4 rounded-2xl transition-colors border border-gray-100 group disabled:opacity-50 disabled:cursor-not-allowed">
+                              <div className="p-2.5 bg-red-50 text-red-600 rounded-xl group-hover:scale-110 transition-transform">
+                                {isClearingHistory ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                              </div>
+                              <div className="flex-1">
+                                <div className="font-semibold text-gray-800 group-hover:text-red-600 transition-colors">{t.clearHistoryTitle}</div>
+                                <div className="text-[13px] text-gray-500 mt-0.5">{t.clearHistoryDesc}</div>
+                              </div>
+                            </button>
                          </div>
 
                          <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5">
@@ -2605,27 +2916,6 @@ export default function App() {
                          </div>
 
                          <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5">
-                           <Shield className="w-4 h-4" /> {(t as any).dataTitle || "Data & Privasi"}
-                         </h4>
-                         <div className="flex flex-col gap-3 mb-8">
-                            <button onClick={handleExportData} className="w-full text-left flex flex-col gap-1 hover:bg-blue-50 p-4 rounded-2xl transition-colors border border-gray-100 group">
-                              <div className="flex justify-between items-center w-full">
-                                <span className="font-semibold text-gray-800 group-hover:text-blue-600 transition-colors cursor-pointer">{(t as any).exportDataTitle || "Ekspor Data"}</span>
-                                <Download className="w-4 h-4 text-gray-400" />
-                              </div>
-                              <span className="text-sm text-gray-500">{(t as any).exportDataDesc || "Unduh semua riwayat chat offline."}</span>
-                            </button>
-
-                            <button disabled={isClearingHistory} onClick={confirmClearAllHistory} className="w-full text-left flex flex-col gap-1 hover:bg-red-50 p-4 rounded-2xl transition-colors border border-gray-100 group disabled:opacity-50 disabled:cursor-not-allowed">
-                              <div className="flex justify-between items-center w-full">
-                                <span className="font-semibold text-gray-800 group-hover:text-red-600 transition-colors">{(t as any).clearHistoryTitle || "Hapus Semua Riwayat"}</span>
-                                {isClearingHistory ? <Loader2 className="w-4 h-4 text-gray-400 animate-spin" /> : <Trash2 className="w-4 h-4 text-gray-400" />}
-                              </div>
-                              <span className="text-sm text-gray-500">{(t as any).clearHistoryDesc || "Hapus semua chat dari server."}</span>
-                            </button>
-                         </div>
-
-                         <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5">
                            <Layers className="w-4 h-4" /> {(t as any).themeTitle || "Tema Tampilan"}
                          </h4>
                          <div className="flex flex-col gap-3 mb-8">
@@ -2639,6 +2929,96 @@ export default function App() {
                               </div>
                               <div className={`w-14 h-7 rounded-full flex items-center p-1 transition-colors duration-300 ${isDarkMode ? 'bg-blue-500' : 'bg-gray-300'}`}>
                                 <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${isDarkMode ? 'translate-x-[26px]' : 'translate-x-0'}`}></div>
+                              </div>
+                            </div>
+
+                            <div className="w-full p-4 rounded-2xl border border-gray-100 bg-gray-50 mt-2">
+                              <div className="flex flex-col gap-1 mb-4 select-none">
+                                <span className="font-semibold text-gray-800">{(t as any).textSizeTitle}</span>
+                                <span className="text-sm text-gray-500">{(t as any).textSizeDesc}</span>
+                              </div>
+                              <div className="flex bg-gray-200/60 p-1.5 rounded-xl text-sm font-medium">
+                                <button 
+                                  onClick={() => setTextSize('small')}
+                                  className={`flex-1 py-2 px-3 rounded-lg transition-all ${textSize === 'small' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                                >
+                                  {(t as any).textSizeSmall}
+                                </button>
+                                <button 
+                                  onClick={() => setTextSize('normal')}
+                                  className={`flex-1 py-2 px-3 rounded-lg transition-all ${textSize === 'normal' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                                >
+                                  {(t as any).textSizeNormal}
+                                </button>
+                                <button 
+                                  onClick={() => setTextSize('large')}
+                                  className={`flex-1 py-2 px-3 rounded-lg transition-all ${textSize === 'large' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                                >
+                                  {(t as any).textSizeLarge}
+                                </button>
+                              </div>
+                            </div>
+                         </div>
+
+                         <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5 mt-8">
+                           <SlidersHorizontal className="w-4 h-4" /> {language === 'en' ? 'Default Preferences' : 'Preferensi Default'}
+                         </h4>
+                         <div className="flex flex-col gap-3 mb-8">
+                            <div className="w-full p-4 rounded-2xl border border-gray-100 bg-gray-50">
+                              <div className="flex items-center gap-3 mb-4 select-none">
+                                <div className="p-2 bg-blue-100 text-blue-600 rounded-xl">
+                                  <Bot className="w-5 h-5" />
+                                </div>
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="font-semibold text-gray-800 text-sm">{(t as any).defaultModelTitle}</span>
+                                  <span className="text-[13px] text-gray-500 max-w-[200px] leading-tight">{(t as any).defaultModelDesc}</span>
+                                </div>
+                              </div>
+                              <div className="flex bg-gray-200/60 p-1.5 rounded-xl text-sm font-medium">
+                                <button 
+                                  onClick={() => setAiModel('gemini-2.5-flash')}
+                                  className={`flex-1 py-2 px-3 rounded-lg transition-all ${aiModel === 'gemini-2.5-flash' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                                >
+                                  SuperAI-Fast
+                                </button>
+                                <button 
+                                  onClick={() => setAiModel('gemini-2.5-pro')}
+                                  className={`flex-1 py-2 px-3 rounded-lg transition-all ${aiModel === 'gemini-2.5-pro' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                                >
+                                  SuperAI-V5
+                                </button>
+                              </div>
+                            </div>
+                            <div className="w-full p-4 rounded-2xl border border-gray-100 bg-gray-50 mt-2">
+                              <div className="flex items-center gap-3 mb-4 select-none">
+                                <div className="p-2 bg-green-100 text-green-600 rounded-xl">
+                                  <LayoutTemplate className="w-5 h-5" />
+                                </div>
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="font-semibold text-gray-800 text-sm">{(t as any).defaultModeTitle}</span>
+                                  <span className="text-[13px] text-gray-500 max-w-[200px] leading-tight">{(t as any).defaultModeDesc}</span>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-sm font-medium">
+                                {/* Using available app modes */}
+                                {[
+                                  { id: 'chat', label: 'Chat' },
+                                  { id: 'generate_image', label: language === 'en' ? 'Generate Image' : 'Buat Gambar' },
+                                  { id: 'search_image', label: language === 'en' ? 'Search Image' : 'Cari Gambar' },
+                                  { id: 'learn', label: language === 'en' ? 'Learn' : 'Belajar' },
+                                  { id: 'slide', label: 'Slide' },
+                                  { id: 'sheet', label: 'Sheet' },
+                                  { id: 'cv', label: 'CV' }
+                                ].map((mode) => (
+                                  <button 
+                                    key={mode.id}
+                                    onClick={() => setAppMode(mode.id as any)}
+                                    className={`py-2 px-3 rounded-lg border transition-all text-left flex justify-between items-center ${appMode === mode.id ? 'border-blue-500 bg-blue-50/50 text-blue-700 shadow-sm' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}
+                                  >
+                                    <span className="capitalize">{mode.label}</span>
+                                    {appMode === mode.id && <Check className="w-4 h-4 text-blue-600" />}
+                                  </button>
+                                ))}
                               </div>
                             </div>
                          </div>
@@ -2706,7 +3086,7 @@ export default function App() {
              className="fixed bottom-0 inset-x-0 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:bottom-8 w-full sm:w-[400px] bg-white rounded-t-[2rem] sm:rounded-[2rem] shadow-xl z-[101] overflow-hidden flex flex-col"
            >
              <div className="flex items-center justify-between p-5 border-b border-gray-100 shrink-0">
-               <h3 className="font-semibold px-2 text-gray-800">Pilih Model AI</h3>
+               <h3 className="font-semibold px-2 text-gray-800">Model SuperAI-V5</h3>
                <button onClick={() => setModelMenuOpen(false)} className="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
                  <X size={20} />
                </button>
@@ -2714,28 +3094,32 @@ export default function App() {
              <div className="p-3 space-y-2 mb-2">
                 <button 
                   onClick={() => { setAiModel("gemini-2.5-flash"); setModelMenuOpen(false); }}
-                  className={`w-full text-left p-4 rounded-2xl transition-all border ${aiModel === "gemini-2.5-flash" ? "bg-blue-50/50 border-blue-200" : "bg-white border-transparent hover:bg-gray-50"}`}
+                  className={`w-full text-left p-4 rounded-2xl transition-all border ${aiModel === "gemini-2.5-flash" ? "bg-blue-50/50 border-blue-200" : "bg-white border-transparent hover:bg-gray-50"} relative`}
                 >
                    <div className="flex items-center gap-4">
                      <div className={`p-2.5 rounded-full ${aiModel === "gemini-2.5-flash" ? "bg-blue-100/50 text-blue-600" : "bg-gray-100 text-gray-600"}`}>
                         <Sparkles size={20} />
                      </div>
-                     <div>
-                       <div className={`font-semibold text-[15px] ${aiModel === "gemini-2.5-flash" ? "text-blue-700" : "text-gray-800"}`}>{t.fast}</div>
+                     <div className="flex-1">
+                       <div className={`font-semibold text-[15px] flex items-center gap-2 ${aiModel === "gemini-2.5-flash" ? "text-blue-700" : "text-gray-800"}`}>
+                         {t.fast}
+                       </div>
                        <div className="text-[13px] text-gray-500 mt-0.5 leading-relaxed">{t.modelStandardDesc}</div>
                      </div>
                    </div>
                 </button>
                 <button 
                   onClick={() => { setAiModel("gemini-2.5-pro"); setModelMenuOpen(false); }}
-                  className={`w-full text-left p-4 rounded-2xl transition-all border ${aiModel === "gemini-2.5-pro" ? "bg-blue-50/50 border-blue-200" : "bg-white border-transparent hover:bg-gray-50"}`}
+                  className={`w-full text-left p-4 rounded-2xl transition-all border ${aiModel === "gemini-2.5-pro" ? "bg-blue-50/50 border-blue-200" : "bg-white border-transparent hover:bg-gray-50"} relative`}
                 >
                    <div className="flex items-center gap-4">
                      <div className={`p-2.5 rounded-full ${aiModel === "gemini-2.5-pro" ? "bg-blue-100/50 text-blue-600" : "bg-gray-100 text-gray-600"}`}>
                         <Bot size={20} />
                      </div>
-                     <div>
-                       <div className={`font-semibold text-[15px] ${aiModel === "gemini-2.5-pro" ? "text-blue-700" : "text-gray-800"}`}>{t.pro}</div>
+                     <div className="flex-1">
+                       <div className={`font-semibold text-[15px] flex items-center gap-2 ${aiModel === "gemini-2.5-pro" ? "text-blue-700" : "text-gray-800"}`}>
+                         {t.pro} <Sparkles className="w-3.5 h-3.5 text-orange-500 fill-orange-500" />
+                       </div>
                        <div className="text-[13px] text-gray-500 mt-0.5 leading-relaxed">{t.modelProDesc}</div>
                      </div>
                    </div>

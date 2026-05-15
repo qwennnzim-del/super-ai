@@ -6,9 +6,12 @@
       "type": "object",
       "properties": {
         "photoURL": { "type": "string" },
-        "displayName": { "type": "string" }
+        "displayName": { "type": "string" },
+        "credits": { "type": "number" },
+        "freeCredits": { "type": "number" },
+        "lastResetDate": { "type": "string" }
       },
-      "required": ["photoURL"]
+      "required": ["photoURL", "credits", "freeCredits", "lastResetDate"]
     },
     "Chat": {
       "title": "Chat",
