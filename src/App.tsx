@@ -464,6 +464,7 @@ export default function App() {
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [expandedNotifId, setExpandedNotifId] = useState<string | null>(null);
   const [lastSeenNotification, setLastSeenNotification] = useState<string>(() => {
     return localStorage.getItem("app_last_seen_notification") || new Date(0).toISOString();
   });
@@ -739,6 +740,10 @@ export default function App() {
   }, [user]);
 
   useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      return;
+    }
     const q = query(collection(db, "system_notifications"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notifList = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as AppNotification));
@@ -752,7 +757,7 @@ export default function App() {
       console.error("Error fetching notifications:", error);
     });
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (!currentChatId || !user) {
@@ -790,20 +795,29 @@ export default function App() {
   const confirmClearAllHistory = () => setShowClearConfirm(true);
 
   const handleCreateNotification = async () => {
-    if (!user || user.email !== 'cipaonly08@gmail.com' || !newNotifTitle || !newNotifDesc) return;
+    if (!user || user.email !== 'cipaonly08@gmail.com') return;
+    if (!newNotifTitle.trim() || !newNotifDesc.trim()) {
+      alert("Judul dan deskripsi tidak boleh kosong");
+      return;
+    }
+    const createBtn = document.getElementById('btn-create-notif');
+    if (createBtn) createBtn.innerText = "Mengirim...";
     try {
       await setDoc(doc(collection(db, "system_notifications")), {
-        title: newNotifTitle,
-        description: newNotifDesc,
-        creatorName: displayDisplayName,
-        creatorPhoto: displayPhotoURL,
+        title: newNotifTitle.trim(),
+        description: newNotifDesc.trim(),
+        creatorName: displayDisplayName || "Tim SuperAI",
+        creatorPhoto: displayPhotoURL || null,
         createdAt: serverTimestamp()
       });
       setIsCreatingNotification(false);
       setNewNotifTitle("");
       setNewNotifDesc("");
-    } catch (e) {
+    } catch (e: any) {
       console.error("Created notification failed", e);
+      alert("Error membuat notifikasi: " + (e.message || String(e)));
+    } finally {
+      if (createBtn) createBtn.innerText = "Kirim";
     }
   };
 
@@ -3473,23 +3487,38 @@ export default function App() {
                     <p className="text-sm">Notifikasi sistem akan muncul di sini.</p>
                   </div>
                 ) : (
-                  notifications.map((notif) => (
+                  notifications.map((notif) => {
+                    const isExpanded = expandedNotifId === notif.id;
+                    const descText = notif.description || '';
+                    const isLongText = descText.length > 80;
+                    return (
                     <div key={notif.id} className={`p-4 rounded-2xl border flex flex-col gap-3 transition-colors ${isDarkMode ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/40 border-black/5 hover:bg-white/60 shadow-sm'}`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                           <img src={notif.creatorPhoto || '/default-avatar.png'} alt="Admin" className="w-8 h-8 rounded-full border border-gray-200/20 object-cover" />
+                           {notif.creatorPhoto ? (
+                              <img src={notif.creatorPhoto} alt="Admin" className="w-8 h-8 rounded-full border border-gray-200/20 object-cover bg-gray-100" />
+                           ) : (
+                              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs"><Layers className="w-4 h-4"/></div>
+                           )}
                            <span className={`text-sm font-semibold tracking-wide ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>{notif.creatorName || "Tim SuperAI"}</span>
                         </div>
                         <div className="text-[10px] uppercase font-bold tracking-wider opacity-50 px-2 py-1 rounded bg-black/5">
                           {notif.createdAt?.toDate ? notif.createdAt.toDate().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'}) : 'Baru'}
                         </div>
                       </div>
-                      <div className="flex flex-col">
+                      <div className="flex flex-col cursor-pointer" onClick={() => isLongText && setExpandedNotifId(isExpanded ? null : notif.id)}>
                         <h4 className="font-bold text-base mb-1">{notif.title}</h4>
-                        <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{notif.description}</p>
+                        <p className={`text-sm leading-relaxed transition-all ${isDarkMode ? 'text-gray-300' : 'text-gray-600'} ${isExpanded ? '' : 'line-clamp-2'}`}>
+                          {descText}
+                        </p>
+                        {isLongText && (
+                          <span className="text-xs font-semibold text-blue-500 mt-1 hover:text-blue-600">
+                             {isExpanded ? 'Sembunyikan' : 'Baca selengkapnya'}
+                          </span>
+                        )}
                       </div>
                     </div>
-                  ))
+                  )})
                 )}
               </div>
 
@@ -3511,7 +3540,7 @@ export default function App() {
                          className={`w-full p-3 rounded-xl border text-sm resize-none h-24 focus:ring-2 focus:ring-blue-500 transition-all ${isDarkMode ? 'bg-black/20 border-white/10 text-white placeholder-gray-400' : 'bg-white/50 border-black/10 text-gray-900 placeholder-gray-500'}`}
                       ></textarea>
                       <div className="flex gap-2">
-                        <button onClick={handleCreateNotification} className="flex-1 bg-blue-600 text-white font-semibold py-2.5 rounded-xl hover:bg-blue-700 active:scale-95 transition-all text-sm">Kirim</button>
+                        <button id="btn-create-notif" onClick={handleCreateNotification} className="flex-1 bg-blue-600 text-white font-semibold py-2.5 rounded-xl hover:bg-blue-700 active:scale-95 transition-all text-sm">Kirim</button>
                         <button onClick={() => setIsCreatingNotification(false)} className={`flex-1 font-semibold py-2.5 rounded-xl border hover:opacity-80 active:scale-95 transition-all text-sm ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/50 border-black/10 text-gray-900'}`}>Batal</button>
                       </div>
                     </div>

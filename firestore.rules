@@ -36,12 +36,18 @@ service cloud.firestore {
       allow read: if isSignedIn() && userId == request.auth.uid;
       allow create, update: if isSignedIn() 
         && userId == request.auth.uid
-        && incoming().keys().hasAny(['photoURL', 'displayName', 'credits', 'freeCredits', 'lastResetDate'])
+        && incoming().keys().hasAny(['photoURL', 'displayName', 'bio', 'credits', 'freeCredits', 'lastResetDate'])
         && (!("photoURL" in incoming()) || incoming().photoURL is string || incoming().photoURL == null)
         && (!("displayName" in incoming()) || incoming().displayName is string || incoming().displayName == null)
+        && (!("bio" in incoming()) || incoming().bio is string || incoming().bio == null)
         && (!("credits" in incoming()) || incoming().credits is number)
         && (!("freeCredits" in incoming()) || incoming().freeCredits is number)
         && (!("lastResetDate" in incoming()) || incoming().lastResetDate is string);
+    }
+    
+    match /system_notifications/{notificationId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSignedIn() && request.auth.token.email == 'cipaonly08@gmail.com';
     }
 
     match /chats/{chatId} {
