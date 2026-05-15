@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { Info, Shield, Layers, HelpCircle, ChevronRight, ArrowLeft, Sparkles, Mic, ChevronDown, Menu, Frame, SquareArrowUpRight, Bot, Check, Copy, MessageSquare, Trash2, LogOut, X, Search, Mail, Lock, Eye, Globe, Camera, Image as ImageIcon, FileText, Paperclip, Plus, Crown, ThumbsUp, Share2, Palette, BookOpen, MonitorPlay, Table, Briefcase, Download, Square, Loader2, Map as MapIcon, CloudSun, Calendar, Clock, SlidersHorizontal, LayoutTemplate } from "lucide-react";
+import { Info, Shield, Layers, HelpCircle, ChevronRight, ArrowLeft, Sparkles, Mic, ChevronDown, Menu, Frame, SquareArrowUpRight, Bot, Check, Copy, MessageSquare, Trash2, LogOut, X, Search, Mail, Lock, Eye, Globe, Camera, Image as ImageIcon, FileText, Paperclip, Plus, Crown, ThumbsUp, Share2, Palette, BookOpen, MonitorPlay, Table, Briefcase, Download, Square, Loader2, Map as MapIcon, CloudSun, Calendar, Clock, SlidersHorizontal, LayoutTemplate, Bell } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { auth, db, googleAuthProvider, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
@@ -452,6 +452,24 @@ export default function App() {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [streamingText, setStreamingText] = useState<string | null>(null);
+
+  type AppNotification = {
+    id: string;
+    title: string;
+    description: string;
+    creatorName: string;
+    creatorPhoto: string;
+    createdAt: any;
+  };
+
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [lastSeenNotification, setLastSeenNotification] = useState<string>(() => {
+    return localStorage.getItem("app_last_seen_notification") || new Date(0).toISOString();
+  });
+  const [isCreatingNotification, setIsCreatingNotification] = useState(false);
+  const [newNotifTitle, setNewNotifTitle] = useState("");
+  const [newNotifDesc, setNewNotifDesc] = useState("");
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [loadingText, setLoadingText] = useState("Berfikir...");
@@ -529,6 +547,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("app_mode", appMode);
   }, [appMode]);
+
+  useEffect(() => {
+    localStorage.setItem("app_last_seen_notification", lastSeenNotification);
+  }, [lastSeenNotification]);
   
   const t = TRANSLATIONS[language];
 
@@ -717,6 +739,22 @@ export default function App() {
   }, [user]);
 
   useEffect(() => {
+    const q = query(collection(db, "system_notifications"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notifList = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as AppNotification));
+      notifList.sort((a, b) => {
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return timeB - timeA; // Descending
+      });
+      setNotifications(notifList);
+    }, (error) => {
+      console.error("Error fetching notifications:", error);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
     if (!currentChatId || !user) {
       if (!currentChatId) setMessages([]);
       return;
@@ -750,6 +788,24 @@ export default function App() {
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
 
   const confirmClearAllHistory = () => setShowClearConfirm(true);
+
+  const handleCreateNotification = async () => {
+    if (!user || user.email !== 'cipaonly08@gmail.com' || !newNotifTitle || !newNotifDesc) return;
+    try {
+      await setDoc(doc(collection(db, "system_notifications")), {
+        title: newNotifTitle,
+        description: newNotifDesc,
+        creatorName: displayDisplayName,
+        creatorPhoto: displayPhotoURL,
+        createdAt: serverTimestamp()
+      });
+      setIsCreatingNotification(false);
+      setNewNotifTitle("");
+      setNewNotifDesc("");
+    } catch (e) {
+      console.error("Created notification failed", e);
+    }
+  };
 
   const handleClearAllHistory = async () => {
     if (!user) return;
@@ -1537,6 +1593,24 @@ export default function App() {
           <span className="text-xl font-medium tracking-tight">SuperAI</span>
         </div>
         <div className="flex items-center gap-1">
+          <motion.div className="relative">
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                setShowNotifications(true);
+                if (notifications.length > 0) {
+                  setLastSeenNotification(notifications[0].createdAt?.toDate?.()?.toISOString() || new Date().toISOString());
+                }
+              }}
+              className="p-2 rounded-full hover:bg-gray-200/50 transition-colors text-gray-600 hover:text-gray-900"
+            >
+              <Bell className="w-[22px] h-[22px]" strokeWidth={1.75} />
+            </motion.button>
+            {notifications.length > 0 && notifications[0].createdAt?.toMillis && notifications[0].createdAt.toMillis() > new Date(lastSeenNotification).getTime() && (
+              <span className="absolute top-[6px] right-[8px] w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>
+            )}
+          </motion.div>
           <motion.button 
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -3360,6 +3434,94 @@ export default function App() {
               >
                 Selesai
               </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Notifications Modal Overlay */}
+      <AnimatePresence>
+        {showNotifications && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-black/30 backdrop-blur-[10px]"
+            onClick={() => setShowNotifications(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className={`backdrop-blur-2xl border shadow-2xl rounded-[32px] w-full max-w-md h-[80vh] flex flex-col overflow-hidden relative ${isDarkMode ? 'bg-slate-900/60 border-white/10 text-white' : 'bg-white/60 border-white/40 text-gray-900'}`}
+            >
+              <div className={`p-6 border-b flex justify-between items-center ${isDarkMode ? 'border-white/10' : 'border-black/5'}`}>
+                <h3 className="text-xl font-bold tracking-tight">Notifikasi</h3>
+                <button onClick={() => setShowNotifications(false)} className={`p-2 rounded-full transition-colors ${isDarkMode ? 'bg-white/10 hover:bg-white/20' : 'bg-black/5 hover:bg-black/10'}`}>
+                  <X size={18} strokeWidth={2.5} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 relative">
+                {notifications.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full opacity-50 text-center">
+                    <div className="w-16 h-16 mb-4 rounded-full bg-gray-500/10 flex items-center justify-center">
+                      <Bell className="w-8 h-8" />
+                    </div>
+                    <p className="font-medium text-lg mb-1">Belum Ada Notifikasi</p>
+                    <p className="text-sm">Notifikasi sistem akan muncul di sini.</p>
+                  </div>
+                ) : (
+                  notifications.map((notif) => (
+                    <div key={notif.id} className={`p-4 rounded-2xl border flex flex-col gap-3 transition-colors ${isDarkMode ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/40 border-black/5 hover:bg-white/60 shadow-sm'}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                           <img src={notif.creatorPhoto || '/default-avatar.png'} alt="Admin" className="w-8 h-8 rounded-full border border-gray-200/20 object-cover" />
+                           <span className={`text-sm font-semibold tracking-wide ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>{notif.creatorName || "Tim SuperAI"}</span>
+                        </div>
+                        <div className="text-[10px] uppercase font-bold tracking-wider opacity-50 px-2 py-1 rounded bg-black/5">
+                          {notif.createdAt?.toDate ? notif.createdAt.toDate().toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'}) : 'Baru'}
+                        </div>
+                      </div>
+                      <div className="flex flex-col">
+                        <h4 className="font-bold text-base mb-1">{notif.title}</h4>
+                        <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{notif.description}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {user?.email === 'cipaonly08@gmail.com' && (
+                <div className={`p-5 border-t backdrop-blur-md pb-6 ${isDarkMode ? 'bg-black/20 border-white/10' : 'bg-white/40 border-black/5'}`}>
+                  {isCreatingNotification ? (
+                    <div className="flex flex-col gap-3">
+                      <input 
+                        type="text" 
+                        placeholder="Judul Fitur/Notifikasi" 
+                        value={newNotifTitle} 
+                        onChange={e => setNewNotifTitle(e.target.value)}
+                        className={`w-full p-3 rounded-xl border text-sm font-medium focus:ring-2 focus:ring-blue-500 transition-all ${isDarkMode ? 'bg-black/20 border-white/10 text-white placeholder-gray-400' : 'bg-white/50 border-black/10 text-gray-900 placeholder-gray-500'}`}
+                      />
+                      <textarea
+                         placeholder="Deskripsi..."
+                         value={newNotifDesc}
+                         onChange={e => setNewNotifDesc(e.target.value)}
+                         className={`w-full p-3 rounded-xl border text-sm resize-none h-24 focus:ring-2 focus:ring-blue-500 transition-all ${isDarkMode ? 'bg-black/20 border-white/10 text-white placeholder-gray-400' : 'bg-white/50 border-black/10 text-gray-900 placeholder-gray-500'}`}
+                      ></textarea>
+                      <div className="flex gap-2">
+                        <button onClick={handleCreateNotification} className="flex-1 bg-blue-600 text-white font-semibold py-2.5 rounded-xl hover:bg-blue-700 active:scale-95 transition-all text-sm">Kirim</button>
+                        <button onClick={() => setIsCreatingNotification(false)} className={`flex-1 font-semibold py-2.5 rounded-xl border hover:opacity-80 active:scale-95 transition-all text-sm ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-white/50 border-black/10 text-gray-900'}`}>Batal</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => setIsCreatingNotification(true)} className={`w-full font-bold py-3 rounded-xl border flex items-center justify-center gap-2 transition-all active:scale-95 text-sm ${isDarkMode ? 'bg-white/5 border-white/10 hover:bg-white/10 text-white' : 'bg-white border-black/5 hover:bg-gray-50 text-gray-800 shadow-sm'}`}>
+                      <Plus className="w-4 h-4" /> Buat Notifikasi (Admin)
+                    </button>
+                  )}
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}
