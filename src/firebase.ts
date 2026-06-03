@@ -7,24 +7,6 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleAuthProvider = new GoogleAuthProvider();
-googleAuthProvider.addScope('https://www.googleapis.com/auth/drive.file');
-googleAuthProvider.addScope('https://www.googleapis.com/auth/drive.readonly');
-googleAuthProvider.addScope('https://www.googleapis.com/auth/sheets');
-
-let cachedAccessToken: string | null = null;
-
-auth.onIdTokenChanged((user) => {
-  if (!user) {
-    cachedAccessToken = null;
-  }
-});
-
-export const setAccessToken = (token: string) => {
-  cachedAccessToken = token;
-};
-
-export const getAccessToken = () => cachedAccessToken;
-
 
 export enum OperationType {
   CREATE = 'create',
