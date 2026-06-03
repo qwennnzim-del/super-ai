@@ -1252,7 +1252,12 @@ export default function App() {
               const mapInstruction = `[SISTEM TAMPILAN PETA: Pengguna menanyakan lokasi/peta. Anda **WAJIB** menyertakan satu blok kode JSON di akhir pesan Anda dengan koordinat lokasi yang tepat agar sistem dapat merender peta interaktif. Formatnya HARUS persis seperti berikut ini (dalam markdown code block):\n\`\`\`json\n{ "type": "map", "lat": <latitude>, "lng": <longitude>, "title": "Nama Tempat", "zoom": 15 }\n\`\`\`\nPastikan koordinat lat dan lng AKURAT berdasarkan pertanyaan pengguna atau lokasi terdekat. Jangan berikan teks sebelum atau sesudah blok \`\`\`json ini yang bukan bagian dari jawaban. Anda harus merespon dengan penjelasan terlebih dahulu, lalu diakhiri dengan blok JSON ini.]\n\n`;
               try {
                   const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-                      navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
+                      const timer = setTimeout(() => reject(new Error("Timeout")), 10000);
+                      navigator.geolocation.getCurrentPosition(
+                        (pos) => { clearTimeout(timer); resolve(pos); }, 
+                        (err) => { clearTimeout(timer); reject(err); }, 
+                        { timeout: 10000 }
+                      );
                   });
                   locationContext = `[SISTEM: Pengguna saat ini berada di Latitude ${position.coords.latitude}, Longitude ${position.coords.longitude}. Gunakan lokasi ini dalam pencarian area sekitar atau navigasi Anda jika relevan.]\n\n` + mapInstruction;
               } catch (e) {
@@ -1272,7 +1277,12 @@ export default function App() {
               const weatherInstruction = `[SISTEM INFO CUACA: Pengguna menanyakan cuaca. Anda **WAJIB** menampilkan JSON blok untuk widget cuaca di akhir pesan. Formatnya:\n\`\`\`json\n{ "type": "weather", "city": "Nama Kota", "temp": "28", "condition": "Kondisi cuaca", "humidity": "75" }\n\`\`\`\nJangan berikan teks JSON ini di luar code block. Berikan penjelasan text biasa terlebih dahulu.]\n\n`;
               try {
                   const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-                      navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
+                      const timer = setTimeout(() => reject(new Error("Timeout")), 10000);
+                      navigator.geolocation.getCurrentPosition(
+                        (pos) => { clearTimeout(timer); resolve(pos); }, 
+                        (err) => { clearTimeout(timer); reject(err); }, 
+                        { timeout: 10000 }
+                      );
                   });
                   locationContext = `[SISTEM: Lokasi pengguna saat ini - Latitude ${position.coords.latitude}, Longitude ${position.coords.longitude}.]\n\n` + weatherInstruction;
               } catch (e) {
@@ -1568,12 +1578,14 @@ export default function App() {
          sysInstruction += "\n\nInstruksi Tambahan dari Pengguna untuk Kamu (Penting! Patuhi apapun kondisinya):\n" + customInstructions.trim();
       }
 
+      const configObj: any = { systemInstruction: sysInstruction };
+      if (toolsConfig) {
+        configObj.tools = toolsConfig;
+      }
+
       const response = await ai.models.generateContentStream({
         model: aiModel,
-        config: { 
-          systemInstruction: sysInstruction,
-          tools: toolsConfig 
-        },
+        config: configObj,
         contents: contents,
       });
 
@@ -1664,6 +1676,8 @@ export default function App() {
       }
     } finally {
       setIsLoading(false);
+      setIsSearching(false);
+      setPendingMediaTask(null);
     }
   };
 
