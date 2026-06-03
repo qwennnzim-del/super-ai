@@ -1,9 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
-import { Info, Shield, Layers, HelpCircle, ChevronRight, ArrowLeft, Sparkles, Mic, ChevronDown, Menu, Frame, SquareArrowUpRight, Bot, Check, Copy, MessageSquare, Trash2, LogOut, X, Search, Mail, Lock, Eye, Globe, Camera, Image as ImageIcon, FileText, Paperclip, Plus, Crown, ThumbsUp, Share2, Palette, BookOpen, MonitorPlay, Table, Briefcase, Download, Square, Loader2, Map as MapIcon, CloudSun, Calendar, Clock, SlidersHorizontal, LayoutTemplate, Bell } from "lucide-react";
+import { Info, Shield, Layers, HelpCircle, ChevronRight, ArrowLeft, Sparkles, Mic, ChevronDown, Menu, Frame, SquareArrowUpRight, Bot, Check, Copy, MessageSquare, Trash2, LogOut, X, Search, Mail, Lock, Eye, Globe, Camera, Image as ImageIcon, FileText, Paperclip, Plus, Crown, ThumbsUp, Share2, Palette, BookOpen, MonitorPlay, Table, Briefcase, Download, Square, Loader2, Map as MapIcon, CloudSun, Calendar, Clock, SlidersHorizontal, LayoutTemplate, Bell, Pencil, Cloud } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
-import { auth, db, googleAuthProvider, handleFirestoreError, OperationType } from './firebase';
-import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
-import { collection, query, where, orderBy, onSnapshot, setDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { auth, db, googleAuthProvider, handleFirestoreError, OperationType, setAccessToken, getAccessToken } from './firebase';
+import { onAuthStateChanged, signInWithPopup, signOut, User, GoogleAuthProvider } from 'firebase/auth';
+import { collection, query, where, orderBy, onSnapshot, setDoc, doc, serverTimestamp, deleteDoc, writeBatch } from 'firebase/firestore';
 import { motion, AnimatePresence } from "motion/react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -465,6 +465,8 @@ export default function App() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [expandedNotifId, setExpandedNotifId] = useState<string | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editMessageText, setEditMessageText] = useState("");
   const [lastSeenNotification, setLastSeenNotification] = useState<string>(() => {
     return localStorage.getItem("app_last_seen_notification") || new Date(0).toISOString();
   });
@@ -574,6 +576,11 @@ export default function App() {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
+  // Drive integration state
+  const [driveModalOpen, setDriveModalOpen] = useState(false);
+  const [driveFiles, setDriveFiles] = useState<any[]>([]);
+  const [loadingDriveFiles, setLoadingDriveFiles] = useState(false);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
@@ -592,6 +599,146 @@ export default function App() {
     }
     setAttachmentMenuOpen(false);
     if (e.target) e.target.value = '';
+  };
+
+  const loadDriveFiles = async () => {
+    let token = getAccessToken();
+    if (!token && user) {
+      handleLoginWithGoogle();
+      return;
+    }
+    if (!token) {
+      handleLogin();
+      return;
+    }
+
+    setLoadingDriveFiles(true);
+    setDriveModalOpen(true);
+    setAttachmentMenuOpen(false);
+    try {
+      const res = await fetch('https://www.googleapis.com/drive/v3/files?q=mimeType!="application/vnd.google-apps.folder"&orderBy=modifiedTime desc&pageSize=15', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.files) {
+        setDriveFiles(data.files);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingDriveFiles(false);
+    }
+  };
+
+  const handleSelectDriveFile = async (file: any) => {
+    let token = getAccessToken();
+    if (!token) return;
+    
+    setLoadingDriveFiles(true);
+    try {
+      let downloadUrl = `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`;
+      
+      if (file.mimeType.startsWith('application/vnd.google-apps.')) {
+         let exportMime = 'text/plain';
+         if (file.mimeType === 'application/vnd.google-apps.spreadsheet') {
+           exportMime = 'text/csv';
+         } else if (file.mimeType === 'application/vnd.google-apps.presentation') {
+           exportMime = 'text/plain';
+         }
+         downloadUrl = `https://www.googleapis.com/drive/v3/files/${file.id}/export?mimeType=${exportMime}`;
+      }
+      
+      const response = await fetch(downloadUrl, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (!response.ok) {
+         throw new Error("Failed to read file");
+      }
+      const blob = await response.blob();
+      const reader = new FileReader();
+      
+      reader.onloadend = () => {
+        const fileObj = new File([blob], file.name, { type: blob.type });
+        setCurrentAttachments(prev => [...prev, {
+          file: fileObj,
+          name: file.name,
+          dataUrl: reader.result as string,
+          mimeType: blob.type
+        }]);
+        setDriveModalOpen(false);
+      }
+      reader.readAsDataURL(blob);
+
+    } catch (err) {
+      console.error(err);
+      alert("Gagal membaca file dari Drive.");
+      setDriveModalOpen(false);
+    } finally {
+      setLoadingDriveFiles(false);
+    }
+  };
+
+  const saveToDrive = async (text: string) => {
+    let token = getAccessToken();
+    if (!token && user) {
+      handleLoginWithGoogle();
+      return;
+    }
+    if (!token) {
+      handleLogin();
+      return;
+    }
+
+    try {
+      const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/related; boundary=foo_bar_baz'
+        },
+        body: `--foo_bar_baz\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n{"name": "SuperAI_Response.txt", "mimeType": "text/plain"}\r\n--foo_bar_baz\r\nContent-Type: text/plain\r\n\r\n${text}\r\n--foo_bar_baz--`
+      });
+      if (response.ok) {
+        alert("Berhasil disimpan ke Google Drive!");
+      } else {
+        alert("Gagal menyimpan ke Google Drive.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Gagal terhubung ke Google Drive.");
+    }
+  };
+
+  const saveToSheet = async (csvData: string, title?: string) => {
+    let token = getAccessToken();
+    if (!token && user) {
+      handleLoginWithGoogle();
+      return;
+    }
+    if (!token) {
+      handleLogin();
+      return;
+    }
+
+    try {
+      const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/related; boundary=foo_bar_baz'
+        },
+        body: `--foo_bar_baz\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n{"name": "${title || 'SuperAI_Tabel.csv'}", "mimeType": "application/vnd.google-apps.spreadsheet"}\r\n--foo_bar_baz\r\nContent-Type: text/csv\r\n\r\n${csvData}\r\n--foo_bar_baz--`
+      });
+      if (response.ok) {
+        alert("Berhasil diekspor dan disimpan ke Google Sheets Anda!");
+      } else {
+        alert("Gagal mengekspor ke Google Sheets.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Gagal terhubung ke Google Drive/Sheets.");
+    }
   };
 
   const removeAttachment = (index: number) => {
@@ -897,10 +1044,18 @@ export default function App() {
 
   const handleLoginWithGoogle = async () => {
     try {
-      await signInWithPopup(auth, googleAuthProvider);
+      const result = await signInWithPopup(auth, googleAuthProvider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        setAccessToken(credential.accessToken);
+      }
       setShowLoginScreen(false);
-    } catch (error) {
-      console.error("Login Error:", error);
+    } catch (error: any) {
+      if (error.code === 'auth/popup-closed-by-user') {
+        console.log("Login dibatalkan oleh pengguna.");
+      } else {
+        console.error("Login Error:", error);
+      }
     }
   };
 
@@ -937,6 +1092,36 @@ export default function App() {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
     }
+  };
+
+  const submitEditMessage = async (messageId: string, newText: string) => {
+    if (!newText.trim() || !user || !currentChatId) {
+      setEditingMessageId(null);
+      return;
+    }
+    
+    setEditingMessageId(null);
+    setIsLoading(true);
+
+    try {
+      const index = messages.findIndex(m => m.id === messageId);
+      if (index !== -1) {
+        const messagesToDelete = messages.slice(index);
+        const batch = writeBatch(db);
+        for (const msg of messagesToDelete) {
+          batch.delete(doc(db, `chats/${currentChatId}/messages`, msg.id));
+        }
+        await batch.commit();
+      }
+      
+      // We explicitly clear the attachments because when resending we only resend text for now.
+      setCurrentAttachments([]); 
+    } catch (error) {
+      console.error("Error deleting old messages for edit", error);
+    }
+    
+    // Call handleSendMessage with the edited string to regenerate response
+    handleSendMessage(newText);
   };
 
   const handleSendMessage = async (textOverride?: string | React.MouseEvent | React.FormEvent) => {
@@ -1741,29 +1926,59 @@ export default function App() {
                 {messages.map((message) => (
                   <motion.div
                     key={message.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -20 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30, mass: 0.8 }}
+                    layout
                     className={`flex w-full ${
                       message.role === "user" ? "justify-end" : "justify-start"
                     }`}
                   >
                     {message.role === "user" ? (
                       <div className="flex flex-col items-end max-w-[85%]">
-                        {message.attachments && message.attachments.length > 0 && (
-                          <div className="flex flex-wrap justify-end gap-2 mb-2">
-                             {message.attachments.map((att, i) => (
-                               <div key={i} className="flex items-center gap-2 bg-gray-100/50 px-3 py-1.5 rounded-xl border border-gray-200/60">
-                                  {att.mimeType?.startsWith('image/') ? <ImageIcon className="w-4 h-4 text-gray-500" /> : <FileText className="w-4 h-4 text-gray-500" />}
-                                  <span className="text-xs text-gray-700 font-medium truncate max-w-[150px]">{att.name}</span>
-                               </div>
-                             ))}
+                        {editingMessageId === message.id ? (
+                          <div className="w-full bg-white border border-gray-200 shadow-sm rounded-2xl p-4 flex flex-col gap-3 min-w-[280px] sm:min-w-[400px]">
+                            <textarea 
+                              className="w-full resize-none outline-none text-sm p-1 text-gray-800"
+                              value={editMessageText}
+                              onChange={(e) => setEditMessageText(e.target.value)}
+                              autoFocus
+                              rows={4}
+                            />
+                            <div className="flex justify-end gap-2 mt-2">
+                               <button onClick={() => setEditingMessageId(null)} className="px-4 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors">Batal</button>
+                               <button onClick={() => submitEditMessage(message.id, editMessageText)} className="px-4 py-2 text-xs font-semibold bg-gray-900 text-white rounded-xl hover:bg-black flex items-center gap-2 transition-colors"><Sparkles className="w-3.5 h-3.5"/> Kirim Ulang</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-end w-full group relative">
+                            {message.attachments && message.attachments.length > 0 && (
+                              <div className="flex flex-wrap justify-end gap-2 mb-2">
+                                 {message.attachments.map((att, i) => (
+                                   <div key={i} className="flex items-center gap-2 bg-gray-100/50 px-3 py-1.5 rounded-xl border border-gray-200/60">
+                                      {att.mimeType?.startsWith('image/') ? <ImageIcon className="w-4 h-4 text-gray-500" /> : <FileText className="w-4 h-4 text-gray-500" />}
+                                      <span className="text-xs text-gray-700 font-medium truncate max-w-[150px]">{att.name}</span>
+                                   </div>
+                                 ))}
+                              </div>
+                            )}
+                            <div className="flex items-start gap-2 max-w-full">
+                              <button 
+                                onClick={() => { setEditingMessageId(message.id); setEditMessageText(message.text); }}
+                                className="opacity-0 group-hover:opacity-100 p-2 rounded-full hover:bg-gray-100 text-gray-400 transition-colors mt-1 shrink-0"
+                                title="Edit Prompt"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <div 
+                                className={`bg-gray-100 text-gray-900 px-5 py-3.5 rounded-3xl rounded-tr-md leading-relaxed text-left whitespace-pre-wrap font-medium select-text max-w-full overflow-hidden shadow-sm border border-gray-200/50 ${textSize === 'small' ? 'text-[0.95rem]' : textSize === 'large' ? 'text-[1.25rem]' : 'text-[1.1rem] sm:text-[1.15rem]'}`}
+                              >
+                                {message.text}
+                              </div>
+                            </div>
                           </div>
                         )}
-                        <div 
-                          className={`bg-gray-100 text-gray-900 px-5 py-3.5 rounded-3xl rounded-tr-md leading-relaxed text-left whitespace-pre-wrap font-medium select-text max-w-full overflow-hidden shadow-sm border border-gray-200/50 ${textSize === 'small' ? 'text-[0.95rem]' : textSize === 'large' ? 'text-[1.25rem]' : 'text-[1.1rem] sm:text-[1.15rem]'}`}
-                        >
-                          {message.text}
-                        </div>
                       </div>
                     ) : (
                       <div className="flex flex-col items-start w-fit max-w-full mt-1">
@@ -1808,7 +2023,12 @@ export default function App() {
                              </span>
                            </div>
                         ) : message.sheetData ? (
-                          <div className="flex flex-col w-full">
+                          <motion.div 
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, ease: "easeOut" }}
+                            className="flex flex-col w-full"
+                          >
                             <div className="flex items-center gap-3 mb-2 px-1">
                               <img src="/logo.png" alt="Logo" className="w-8 h-8 shrink-0 object-contain" />
                               <span className="font-semibold text-gray-800 text-[1.05rem]">SuperAI</span>
@@ -1894,10 +2114,35 @@ export default function App() {
                                         <Download className="w-4 h-4" />
                                         Download CSV
                                      </button>
+                                     <button 
+                                        onClick={() => {
+                                          const rawCsv = message.sheetData.columns.map((e: string) => `"${e.toString().replace(/"/g, '""')}"`).join(",") + "\n"
+                                              + message.sheetData.rows.map((rowObj: any) => (rowObj.cells || []).map((v: any) => `"${(v || '').toString().replace(/"/g, '""')}"`).join(",")).join("\n");
+                                          saveToSheet(rawCsv, message.sheetData.title);
+                                        }}
+                                        className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors w-full sm:w-auto shadow-md shadow-blue-500/20"
+                                     >
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 192 192" className="w-5 h-5 pointer-events-none">
+                                          <path fill="#009954" d="M8 74.6c0-8.943 0-13.415 1.404-16.962a20 20 0 0 1 11.234-11.233C24.185 45 28.656 45 37.6 45h60.8c8.943 0 13.415 0 16.962 1.404a20 20 0 0 1 11.234 11.234C128 61.185 128 65.656 128 74.6v42.8c0 8.943 0 13.415-1.404 16.962a20 20 0 0 1-11.234 11.234C111.815 147 107.343 147 98.4 147H37.6c-8.943 0-13.415 0-16.963-1.404a20 20 0 0 1-11.233-11.234C8 130.815 8 126.343 8 117.4z"/>
+                                          <mask id="sheet-mask-1" width="160" height="128" x="24" y="32" maskUnits="userSpaceOnUse" style={{maskType:'alpha'}}><rect width="160" height="128" x="24" y="32" fill="#0ebc5f" rx="20"/></mask>
+                                          <g mask="url(#sheet-mask-1)">
+                                            <path fill="#0ebc5f" d="M24 32h160v128H24z"/>
+                                            <g filter="url(#sheet-filter-1)">
+                                              <rect width="144" height="102" fill="url(#sheet-grad-1)" rx="25.6" transform="matrix(1 0 0 -1 8 147)"/>
+                                            </g>
+                                          </g>
+                                          <path stroke="#fff" strokeLinecap="round" strokeWidth="12" d="M80 121h84m-20 19V76"/>
+                                          <defs>
+                                            <linearGradient id="sheet-grad-1" x1="122.24" x2="20.76" y1="43.31" y2="43.31" gradientUnits="userSpaceOnUse"><stop stopColor="#0ebc5f"/><stop offset=".95" stopColor="#78c9ff"/></linearGradient>
+                                            <filter id="sheet-filter-1" width="168" height="126" x="-4" y="33" colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse"><feFlood floodOpacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_37435_8174" stdDeviation="6"/></filter>
+                                          </defs>
+                                        </svg>
+                                        Simpan ke Sheet
+                                     </button>
                                   </div>
                                </div>
                             </div>
-                          </div>
+                          </motion.div>
                         ) : message.slideData ? (
                           <div className="flex flex-col w-full">
                             <div className="flex items-center gap-3 mb-2 px-1">
@@ -2037,7 +2282,24 @@ export default function App() {
                                              <ChevronDown className="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform duration-200" />
                                           </summary>
                                           <div className="p-4 pt-1 text-[0.9rem] text-gray-600 bg-gray-50/50 markdown-body prose-sm prose-gray max-w-none">
-                                            <Markdown remarkPlugins={[remarkGfm]} components={{ code: CodeBlock }}>{thinkingText}</Markdown>
+                                            <Markdown 
+                                              remarkPlugins={[remarkGfm]} 
+                                              components={{ 
+                                                p: ({node, children, ...props}) => (
+                                                  <motion.p
+                                                    initial={{ opacity: 0, y: 5 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ duration: 0.4, ease: "easeOut" }}
+                                                    {...(props as any)}
+                                                  >
+                                                    {children}
+                                                  </motion.p>
+                                                ),
+                                                code: CodeBlock 
+                                              }}
+                                            >
+                                              {thinkingText}
+                                            </Markdown>
                                           </div>
                                        </details>
                                      )}
@@ -2045,6 +2307,16 @@ export default function App() {
                                        <Markdown 
                                          remarkPlugins={[remarkGfm]}
                                          components={{ 
+                                           p: ({node, children, ...props}) => (
+                                              <motion.p
+                                                initial={{ opacity: 0, y: 5 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ duration: 0.4, ease: "easeOut" }}
+                                                {...(props as any)}
+                                              >
+                                                {children}
+                                              </motion.p>
+                                           ),
                                            hr: ({node, ...props}) => <hr className="w-full h-[3px] bg-gradient-to-r from-transparent via-purple-300 to-transparent my-10 border-0 rounded-full" />,
                                            code: CodeBlock,
                                            a: ({node, ...props}) => {
@@ -2267,6 +2539,28 @@ export default function App() {
                                title="Salin"
                              >
                                 {copiedId === message.id ? <Check className="w-4 h-4 text-green-500" strokeWidth={2} /> : <Copy className="w-4 h-4" strokeWidth={2} />}
+                             </motion.button>
+
+                             <motion.button
+                               whileHover={{ scale: 1.1 }}
+                               whileTap={{ scale: 0.95 }}
+                               onClick={() => saveToDrive(message.text)}
+                               className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+                               title="Simpan ke Google Drive"
+                             >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 192 192" className="w-4 h-4 pointer-events-none">
+                                  <mask id="drive-mask-1" width="168" height="154" x="12" y="18" maskUnits="userSpaceOnUse" style={{maskType:'alpha'}}><path fill="#b43333" d="M63.09 37c14.626-25.333 51.193-25.334 65.819 0l45.033 78c14.626 25.334-3.657 57.001-32.91 57.001H50.967c-29.253 0-47.536-31.667-32.91-57.001z"/></mask>
+                                  <g mask="url(#drive-mask-1)">
+                                    <path fill="url(#drive-grad-1)" d="M206.905 172.02h-91.888l-19.015-32.934 45.944-79.578z"/>
+                                    <path fill="url(#drive-grad-2)" d="M-14.919 172.006 50.04 59.494v.002L31.032 92.422h38.02L115 172.004l-129.918.001z"/>
+                                    <path fill="url(#drive-grad-3)" d="M96.007-20.085 141.954 59.5l-19.011 32.928H31.048z"/>
+                                  </g>
+                                  <defs>
+                                    <linearGradient id="drive-grad-1" x1="193.6" x2="103.09" y1="165.6" y2="111.21" gradientUnits="userSpaceOnUse"><stop offset=".09" stopColor="#ffe921"/><stop offset="1" stopColor="#fec700"/></linearGradient>
+                                    <linearGradient id="drive-grad-2" x1="114.4" x2="15.53" y1="181.61" y2="121.8" gradientUnits="userSpaceOnUse"><stop offset=".15" stopColor="#a9a8ff"/><stop offset=".33" stopColor="#6d97ff"/><stop offset=".48" stopColor="#3186ff"/></linearGradient>
+                                    <linearGradient id="drive-grad-3" x1="128.88" x2="28.7" y1="37.88" y2="84.64" gradientUnits="userSpaceOnUse"><stop offset=".55" stopColor="#0ebc5f"/><stop offset=".85" stopColor="#78c9ff"/></linearGradient>
+                                  </defs>
+                                </svg>
                              </motion.button>
 
                              <motion.button
@@ -2561,31 +2855,53 @@ export default function App() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute bottom-12 left-0 bg-white shadow-xl shadow-black/5 border border-gray-100 rounded-3xl p-3 w-[260px] grid grid-cols-3 gap-2 z-50 origin-bottom-left"
+                        className="absolute bottom-12 left-0 bg-white shadow-xl shadow-black/5 border border-gray-100 rounded-3xl p-3 w-[260px] grid grid-cols-4 gap-2 z-50 origin-bottom-left"
                       >
                          <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'generate_image' ? 'chat' : 'generate_image'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'generate_image' ? 'bg-blue-100/50' : 'hover:bg-gray-50'}`}>
                            <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'generate_image' ? 'bg-blue-500 text-white' : 'bg-blue-50/80 text-blue-500 group-hover:bg-blue-100'}`}><Palette className="w-5 h-5"/></div>
-                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Buat Gambar</span>
+                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Buat Gen AI</span>
                          </button>
                          <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'search_image' ? 'chat' : 'search_image'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'search_image' ? 'bg-orange-100/50' : 'hover:bg-gray-50'}`}>
                            <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'search_image' ? 'bg-orange-500 text-white' : 'bg-orange-50/80 text-orange-500 group-hover:bg-orange-100'}`}><Search className="w-5 h-5"/></div>
                            <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Cari Gambar</span>
                          </button>
-                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'learn' ? 'chat' : 'learn'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'learn' ? 'bg-green-100/50' : 'hover:bg-gray-50'}`}>
-                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'learn' ? 'bg-green-500 text-white' : 'bg-green-50/80 text-green-500 group-hover:bg-green-100'}`}><BookOpen className="w-5 h-5"/></div>
-                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Terpandu</span>
-                         </button>
-                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'slide' ? 'chat' : 'slide'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'slide' ? 'bg-purple-100/50' : 'hover:bg-gray-50'}`}>
-                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'slide' ? 'bg-purple-500 text-white' : 'bg-purple-50/80 text-purple-500 group-hover:bg-purple-100'}`}><MonitorPlay className="w-5 h-5"/></div>
-                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Slide</span>
+                         <button onClick={() => { setFeatureMenuOpen(false); loadDriveFiles(); }} className="flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group hover:bg-gray-50">
+                           <div className="w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors bg-green-50/80 group-hover:bg-green-100 p-[10px]">
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 192 192" className="w-full h-full pointer-events-none">
+                                  <mask id="drive-mask-2" width="168" height="154" x="12" y="18" maskUnits="userSpaceOnUse" style={{maskType:'alpha'}}><path fill="#b43333" d="M63.09 37c14.626-25.333 51.193-25.334 65.819 0l45.033 78c14.626 25.334-3.657 57.001-32.91 57.001H50.967c-29.253 0-47.536-31.667-32.91-57.001z"/></mask>
+                                  <g mask="url(#drive-mask-2)">
+                                    <path fill="url(#drive-grad-4)" d="M206.905 172.02h-91.888l-19.015-32.934 45.944-79.578z"/>
+                                    <path fill="url(#drive-grad-5)" d="M-14.919 172.006 50.04 59.494v.002L31.032 92.422h38.02L115 172.004l-129.918.001z"/>
+                                    <path fill="url(#drive-grad-6)" d="M96.007-20.085 141.954 59.5l-19.011 32.928H31.048z"/>
+                                  </g>
+                                  <defs>
+                                    <linearGradient id="drive-grad-4" x1="193.6" x2="103.09" y1="165.6" y2="111.21" gradientUnits="userSpaceOnUse"><stop offset=".09" stopColor="#ffe921"/><stop offset="1" stopColor="#fec700"/></linearGradient>
+                                    <linearGradient id="drive-grad-5" x1="114.4" x2="15.53" y1="181.61" y2="121.8" gradientUnits="userSpaceOnUse"><stop offset=".15" stopColor="#a9a8ff"/><stop offset=".33" stopColor="#6d97ff"/><stop offset=".48" stopColor="#3186ff"/></linearGradient>
+                                    <linearGradient id="drive-grad-6" x1="128.88" x2="28.7" y1="37.88" y2="84.64" gradientUnits="userSpaceOnUse"><stop offset=".55" stopColor="#0ebc5f"/><stop offset=".85" stopColor="#78c9ff"/></linearGradient>
+                                  </defs>
+                              </svg>
+                           </div>
+                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Drive</span>
                          </button>
                          <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'sheet' ? 'chat' : 'sheet'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'sheet' ? 'bg-emerald-100/50' : 'hover:bg-gray-50'}`}>
-                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'sheet' ? 'bg-emerald-500 text-white' : 'bg-emerald-50/80 text-emerald-500 group-hover:bg-emerald-100'}`}><Table className="w-5 h-5"/></div>
+                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors p-[10px] ${appMode === 'sheet' ? 'bg-emerald-500' : 'bg-emerald-50/80 group-hover:bg-emerald-100'}`}>
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 192 192" className="w-full h-full pointer-events-none">
+                                <path fill="#009954" d="M8 74.6c0-8.943 0-13.415 1.404-16.962a20 20 0 0 1 11.234-11.233C24.185 45 28.656 45 37.6 45h60.8c8.943 0 13.415 0 16.962 1.404a20 20 0 0 1 11.234 11.234C128 61.185 128 65.656 128 74.6v42.8c0 8.943 0 13.415-1.404 16.962a20 20 0 0 1-11.234 11.234C111.815 147 107.343 147 98.4 147H37.6c-8.943 0-13.415 0-16.963-1.404a20 20 0 0 1-11.233-11.234C8 130.815 8 126.343 8 117.4z"/>
+                                <mask id="sheet-mask-2" width="160" height="128" x="24" y="32" maskUnits="userSpaceOnUse" style={{maskType:'alpha'}}><rect width="160" height="128" x="24" y="32" fill="#0ebc5f" rx="20"/></mask>
+                                <g mask="url(#sheet-mask-2)">
+                                  <path fill="#0ebc5f" d="M24 32h160v128H24z"/>
+                                  <g filter="url(#sheet-filter-2)">
+                                    <rect width="144" height="102" fill="url(#sheet-grad-2)" rx="25.6" transform="matrix(1 0 0 -1 8 147)"/>
+                                  </g>
+                                </g>
+                                <path stroke="#fff" strokeLinecap="round" strokeWidth="12" d="M80 121h84m-20 19V76"/>
+                                <defs>
+                                  <linearGradient id="sheet-grad-2" x1="122.24" x2="20.76" y1="43.31" y2="43.31" gradientUnits="userSpaceOnUse"><stop stopColor="#0ebc5f"/><stop offset=".95" stopColor="#78c9ff"/></linearGradient>
+                                  <filter id="sheet-filter-2" width="168" height="126" x="-4" y="33" colorInterpolationFilters="sRGB" filterUnits="userSpaceOnUse"><feFlood floodOpacity="0" result="BackgroundImageFix"/><feBlend in="SourceGraphic" in2="BackgroundImageFix" result="shape"/><feGaussianBlur result="effect1_foregroundBlur_37435_8174" stdDeviation="6"/></filter>
+                                </defs>
+                              </svg>
+                           </div>
                            <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Sheet</span>
-                         </button>
-                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'cv' ? 'chat' : 'cv'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'cv' ? 'bg-pink-100/50' : 'hover:bg-gray-50'}`}>
-                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'cv' ? 'bg-pink-500 text-white' : 'bg-pink-50/80 text-pink-500 group-hover:bg-pink-100'}`}><Briefcase className="w-5 h-5"/></div>
-                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Buat CV</span>
                          </button>
                       </motion.div>
                     )}
@@ -3166,9 +3482,12 @@ export default function App() {
                             </div>
                          </div>
                          
-                         <div className="pt-6 border-t border-gray-100 flex flex-col items-center justify-center gap-2">
-                            <span className="text-sm text-gray-400 font-medium tracking-wide">{(t as any).appVersion || "App Version"} 1.2.0</span>
-                            <span className="text-xs text-gray-300">© 2026 SuperRinz | SuperAI Inc.</span>
+                         <div className="pt-8 border-t border-gray-100 flex flex-col items-center justify-center gap-2 pb-6">
+                            <span className="text-sm text-gray-400 font-semibold tracking-wide flex items-center gap-2">
+                               <div className="w-5 h-5 rounded-md bg-blue-100 text-blue-600 flex items-center justify-center"><Layers className="w-3 h-3" /></div>
+                               {(t as any).appVersion || "App Version"} 2.0.0
+                            </span>
+                            <span className="text-xs text-gray-400">© 2026 SuperRinz | SuperAI Inc.</span>
                          </div>
                       </div>
                     </motion.div>
@@ -3551,6 +3870,74 @@ export default function App() {
                   )}
                 </div>
               )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Drive File Selection Modal */}
+      <AnimatePresence>
+        {driveModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setDriveModalOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[80vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-blue-50/50">
+                <div className="flex items-center gap-3">
+                   <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                     <Cloud className="w-5 h-5 text-blue-600" />
+                   </div>
+                   <div>
+                     <h3 className="font-bold text-gray-900 text-[1.05rem]">Pilih File dari Drive</h3>
+                     <p className="text-xs text-gray-500 font-medium">Sambungkan file secara langsung.</p>
+                   </div>
+                </div>
+                <button onClick={() => setDriveModalOpen(false)} className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors shadow-sm">
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
+
+              <div className="p-4 overflow-y-auto flex-1 bg-gray-50/30">
+                {loadingDriveFiles ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                     <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-3" />
+                     <p className="text-sm font-medium text-gray-500">Memuat File...</p>
+                  </div>
+                ) : driveFiles.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-2">
+                    {driveFiles.map((file) => (
+                      <button
+                        key={file.id}
+                        onClick={() => handleSelectDriveFile(file)}
+                        className="flex items-center gap-3 w-full p-3 bg-white rounded-xl hover:bg-blue-50 border border-gray-100 transition-colors group text-left"
+                      >
+                         <div className="w-10 h-10 rounded-lg bg-blue-50 group-hover:bg-blue-100 flex items-center justify-center shrink-0 transition-colors">
+                            <FileText className="w-5 h-5 text-blue-500" />
+                         </div>
+                         <div className="flex-1 overflow-hidden shrink-0">
+                            <p className="text-sm font-semibold text-gray-800 truncate">{file.name}</p>
+                            <p className="text-xs text-gray-400 font-medium truncate opacity-70">{file.mimeType.split('.').pop()}</p>
+                         </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Cloud className="w-12 h-12 text-gray-300 mb-3" />
+                    <p className="text-sm font-medium text-gray-500">Tidak ada file yang ditemukan</p>
+                  </div>
+                )}
+              </div>
             </motion.div>
           </motion.div>
         )}
