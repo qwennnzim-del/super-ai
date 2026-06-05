@@ -2,7 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { Info, Shield, Layers, HelpCircle, ChevronRight, ArrowLeft, Sparkles, Mic, ChevronDown, Menu, Frame, SquareArrowUpRight, Bot, Check, Copy, MessageSquare, Trash2, LogOut, X, Search, Mail, Lock, Eye, Globe, Camera, Image as ImageIcon, FileText, Paperclip, Plus, Crown, ThumbsUp, Share2, Palette, BookOpen, MonitorPlay, Table, Briefcase, Download, Square, Loader2, Map as MapIcon, CloudSun, Calendar, Clock, SlidersHorizontal, LayoutTemplate } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { auth, db, googleAuthProvider, handleFirestoreError, OperationType } from './firebase';
-import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
+import { onAuthStateChanged, signInWithPopup, signOut, User, GoogleAuthProvider } from 'firebase/auth';
 import { collection, query, where, orderBy, onSnapshot, setDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { motion, AnimatePresence } from "motion/react";
 import Markdown from "react-markdown";
@@ -395,15 +395,17 @@ export default function App() {
 
   const handleWorkspaceConnect = async () => {
     try {
-      const { googleSignIn } = await import('./firebase');
-      const result = await googleSignIn();
-      if (result && result.accessToken) {
-        setWorkspaceToken(result.accessToken);
+      const result = await signInWithPopup(auth, googleAuthProvider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        setWorkspaceToken(credential.accessToken);
         setIsWorkspaceConnected(true);
       }
     } catch (err: any) {
       console.error(err);
-      alert('Gagal menghubungkan Google Workspace: ' + err.message);
+      if (err.code !== 'auth/popup-closed-by-user') {
+        alert('Gagal menghubungkan Google Workspace: ' + err.message);
+      }
     }
   };
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
@@ -613,20 +615,16 @@ export default function App() {
   }, [streamingText, isLoading]);
 
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-    import('./firebase').then(({ initAuth }) => {
-      unsubscribe = initAuth((u) => {
-        setUser(u);
-        setIsAuthLoading(false);
-      }, () => {
-        setUser(null);
-        setIsAuthLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setIsAuthLoading(false);
+      if (!u) {
         setChats([]);
         setCurrentChatId(null);
         setMessages([]);
-      });
+      }
     });
-    return () => { if (unsubscribe) unsubscribe(); };
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -758,8 +756,7 @@ export default function App() {
 
   const handleLoginWithGoogle = async () => {
     try {
-      const { googleSignIn } = await import('./firebase');
-      await googleSignIn();
+      await signInWithPopup(auth, googleAuthProvider);
       setShowLoginScreen(false);
     } catch (error: any) {
       console.error("Login Error:", error);
