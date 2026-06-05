@@ -9,6 +9,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { DrivePickerModal } from './DrivePickerModal';
 
 const TextAlignStartIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 5H3"/><path d="M15 12H3"/><path d="M17 19H3"/></svg>
@@ -473,9 +474,10 @@ export default function App() {
   const profileInputRef = useRef<HTMLInputElement>(null);
 
   // Attachments State
-  const [currentAttachments, setCurrentAttachments] = useState<{file: File, name: string, dataUrl: string, mimeType: string}[]>([]);
+  const [currentAttachments, setCurrentAttachments] = useState<{file?: File, name: string, dataUrl: string, mimeType: string}[]>([]);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [featureMenuOpen, setFeatureMenuOpen] = useState(false);
+  const [isDrivePickerOpen, setIsDrivePickerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -2092,6 +2094,9 @@ export default function App() {
                     <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left">
                        <FileText className="w-4 h-4 text-gray-500" /> File
                     </button>
+                    <button onClick={() => { setAttachmentMenuOpen(false); setIsDrivePickerOpen(true); }} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left border-t border-gray-50 mt-1 pt-3">
+                       <CloudSun className="w-4 h-4 text-blue-500" /> Google Drive
+                    </button>
                   </div>
                 )}
 
@@ -2921,6 +2926,20 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <DrivePickerModal
+        isOpen={isDrivePickerOpen}
+        onClose={() => setIsDrivePickerOpen(false)}
+        workspaceToken={workspaceToken}
+        onConnectWorkspace={() => {
+           setIsDrivePickerOpen(false);
+           setSettingsOpen(true);
+        }}
+        onSelectFile={(name, dataUrl, mimeType) => {
+           setCurrentAttachments(prev => [...prev, { name, dataUrl, mimeType }]);
+        }}
+        t={t}
+      />
 
      </div>
     </div>
