@@ -9,9 +9,6 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import html2pdf from 'html2pdf.js';
-import pptxgen from "pptxgenjs";
-import { CVPreview } from './components/CVPreview';
 
 const TextAlignStartIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 5H3"/><path d="M15 12H3"/><path d="M17 19H3"/></svg>
@@ -214,10 +211,6 @@ const CodeBlock = ({ node, inline, className, children, ...props }: any) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (match && match[1] === 'jsoncv') {
-    return <CVPreview data={String(children)} />;
-  }
-
   return !inline && match ? (
     <div className="relative group rounded-xl overflow-hidden my-5 border border-gray-700/30">
       <div className="flex items-center justify-between px-4 py-2 bg-[#1f2937] text-gray-300 text-xs font-sans">
@@ -355,85 +348,6 @@ const LoginScreen = ({ onClose, onLoginWithGoogle }: { onClose: () => void, onLo
 };
 
 export default function App() {
-  const handleDownloadPdf = () => {
-    const element = document.getElementById('slide-print-area');
-    if (element && slidePreviewData) {
-      const filename = (slidePreviewData.title || 'Presentasi').replace(/[^a-zA-Z0-9]/g, '_') + '.pdf';
-      const opt = {
-        margin:       0,
-        filename:     filename,
-        image:        { type: 'jpeg' as const, quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false },
-        jsPDF:        { unit: 'px' as const, format: [1920, 1080] as [number, number], orientation: 'landscape' as const, hotfixes: ["px_scaling"] }
-      };
-      html2pdf().set(opt).from(element).save();
-    }
-  };
-
-  const handleDownloadPptx = () => {
-    if (!slidePreviewData) return;
-    
-    let pres = new pptxgen();
-    pres.layout = 'LAYOUT_16x9';
-
-    // Title Slide
-    let slide = pres.addSlide();
-    slide.background = { color: "F3E8FF" }; // Lighter purple background
-    slide.addText(slidePreviewData.title || "Presentasi Anda", {
-      x: 1, y: 2, w: '80%', h: 1.5,
-      fontSize: 48,
-      bold: true,
-      color: "6B21A8", // Purple 800
-      align: "center",
-      valign: "middle"
-    });
-    slide.addText("Dibuat oleh AI SuperAI", {
-      x: 1, y: 3.5, w: '80%', h: 1,
-      fontSize: 24,
-      color: "6B7280",
-      align: "center",
-      valign: "middle"
-    });
-
-    // Content Slides
-    if (slidePreviewData.slides && Array.isArray(slidePreviewData.slides)) {
-      slidePreviewData.slides.forEach((slideData: any) => {
-        let presSlide = pres.addSlide();
-        presSlide.background = { color: "FFFFFF" };
-
-        presSlide.addText(slideData.title, {
-          x: 0.5, y: 0.5, w: '90%', h: 1,
-          fontSize: 32,
-          bold: true,
-          color: "1F2937",
-        });
-
-        if (slideData.content && Array.isArray(slideData.content)) {
-          const bulletPoints = slideData.content.map((pt: string) => ({ text: pt }));
-          presSlide.addText(bulletPoints, {
-            x: 0.5, y: 1.8, w: '55%', h: 3.5,
-            fontSize: 20,
-            color: "4B5563",
-            bullet: { type: 'number' },
-            valign: "top"
-          });
-        }
-
-        if (slideData.imagePrompt) {
-          const promptUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(slideData.imagePrompt)}?width=800&height=1200&nologo=true`;
-          presSlide.addImage({
-            path: promptUrl,
-            x: '55%', y: 1, w: '40%', h: '80%',
-            sizing: { type: 'cover', w: '40%', h: '80%' }
-          });
-        }
-      });
-    }
-
-    const filename = (slidePreviewData.title || 'Presentasi').replace(/[^a-zA-Z0-9]/g, '_') + '.pptx';
-    pres.writeFile({ fileName: filename });
-  };
-
   const [showLoginScreen, setShowLoginScreen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -457,14 +371,11 @@ export default function App() {
   const [loadingText, setLoadingText] = useState("Berfikir...");
   const [loadingIconType, setLoadingIconType] = useState<"none" | "map" | "calendar" | "weather" | "time" | "google">("none");
   const [pendingMediaTask, setPendingMediaTask] = useState<'generate_image' | 'search_image' | null>(null);
-  const [appMode, setAppMode] = useState<"chat" | "generate_image" | "search_image" | "learn" | "slide" | "sheet" | "cv">(() => {
-    return (localStorage.getItem("app_mode") as "chat" | "generate_image" | "search_image" | "learn" | "slide" | "sheet" | "cv") || "chat";
+  const [appMode, setAppMode] = useState<"chat" | "generate_image" | "search_image" | "drive" | "sheets">(() => {
+    const saved = localStorage.getItem("app_mode") as any;
+    if (["chat", "generate_image", "search_image", "drive", "sheets"].includes(saved)) return saved;
+    return "chat";
   });
-  const [slideCount, setSlideCount] = useState<number>(5);
-  const [slideImageMedia, setSlideImageMedia] = useState<'ai' | 'search'>('ai');
-  const [slideTaskState, setSlideTaskState] = useState<'idle' | 'outline' | 'composing' | 'rendering' | 'done'>('idle');
-  const [slidePreviewData, setSlidePreviewData] = useState<any | null>(null);
-  const [slidePreviewMedia, setSlidePreviewMedia] = useState<'ai' | 'search'>('ai');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [likedIds, setLikedIds] = useState<string[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -479,6 +390,22 @@ export default function App() {
   const [exportFormat, setExportFormat] = useState<"json" | "txt" | "md">(() => {
     return (localStorage.getItem("app_export_format") as "json" | "txt" | "md") || "json";
   });
+  const [isWorkspaceConnected, setIsWorkspaceConnected] = useState(false);
+  const [workspaceToken, setWorkspaceToken] = useState<string | null>(null);
+
+  const handleWorkspaceConnect = async () => {
+    try {
+      const { googleSignIn } = await import('./firebase');
+      const result = await googleSignIn();
+      if (result && result.accessToken) {
+        setWorkspaceToken(result.accessToken);
+        setIsWorkspaceConnected(true);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert('Gagal menghubungkan Google Workspace: ' + err.message);
+    }
+  };
   const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
     const val = localStorage.getItem("app_sound_enabled");
     return val !== null ? val === "true" : true;
@@ -686,16 +613,20 @@ export default function App() {
   }, [streamingText, isLoading]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setIsAuthLoading(false);
-      if (!u) {
+    let unsubscribe: (() => void) | undefined;
+    import('./firebase').then(({ initAuth }) => {
+      unsubscribe = initAuth((u) => {
+        setUser(u);
+        setIsAuthLoading(false);
+      }, () => {
+        setUser(null);
+        setIsAuthLoading(false);
         setChats([]);
         setCurrentChatId(null);
         setMessages([]);
-      }
+      });
     });
-    return () => unsubscribe();
+    return () => { if (unsubscribe) unsubscribe(); };
   }, []);
 
   useEffect(() => {
@@ -827,10 +758,14 @@ export default function App() {
 
   const handleLoginWithGoogle = async () => {
     try {
-      await signInWithPopup(auth, googleAuthProvider);
+      const { googleSignIn } = await import('./firebase');
+      await googleSignIn();
       setShowLoginScreen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login Error:", error);
+      if (error.code !== 'auth/popup-closed-by-user') {
+        alert("Gagal login: " + error.message);
+      }
     }
   };
 
@@ -1137,174 +1072,14 @@ export default function App() {
            setPendingMediaTask(null);
          }
       } else {
-
-      if (appMode === 'slide') {
-         try {
-           setSlideTaskState('outline');
-           
-           let sysInstruction = `Anda adalah pembuat presentasi JSON. Buat presentasi dengan TEGAS tepat ${slideCount} slide. Output HANYA MERUPAKAN JSON JAWABAN VALID dengan format:
-{
-  "title": "Judul Presentasi",
-  "slides": [
-    {
-      "title": "Judul Slide",
-      "content": ["Poin 1", "Poin 2"],
-      "imagePrompt": "prompt spesifik untuk mencari/membuat gambar dalam bahasa inggris"
-    }
-  ]
-}`;
-
-          // we mock delay to show stepper to user
-          setTimeout(() => setSlideTaskState('composing'), 2000);
-          
-          const response = await ai.models.generateContent({
-             model: "gemini-2.5-flash",
-             contents: contents, // User prompt
-             config: {
-               systemInstruction: sysInstruction,
-               responseMimeType: "application/json"
-             }
-          });
-
-          setSlideTaskState('rendering');
-          setTimeout(() => setSlideTaskState('idle'), 1500);
-
-          let slideDataStr = response.text || "";
-          let slideDataObj = null;
-          let isValidJson = false;
-          try {
-             const jsonMatch = slideDataStr.match(/\{[\s\S]*\}/);
-             if (jsonMatch) {
-               slideDataObj = JSON.parse(jsonMatch[0]);
-             } else {
-               slideDataObj = JSON.parse(slideDataStr.replace(/```json/gi, '').replace(/```/g, '').trim());
-             }
-             isValidJson = true;
-          } catch(e) {
-             console.error("Failed to parse slide JSON", e);
-             slideDataObj = null;
-          }
-
-          const modelMsgRef = doc(collection(db, `chats/${chatId}/messages`));
-          if (isValidJson && slideDataObj) {
-            await setDoc(modelMsgRef, {
-               chatId: chatId,
-               userId: user.uid,
-               role: "model",
-               text: "Berikut adalah presentasi yang saya buat untuk Anda.",
-               createdAt: serverTimestamp(),
-               slideData: slideDataObj,
-               slideMedia: slideImageMedia
-            });
-          } else {
-            await setDoc(modelMsgRef, {
-               chatId: chatId,
-               userId: user.uid,
-               role: "model",
-               text: "Maaf, terjadi kesalahan saat membuat presentasi. API tidak mengembalikan format yang valid.\n\n```text\n" + slideDataStr.substring(0, 200) + "...\n```",
-               createdAt: serverTimestamp()
-            });
-          }
-          
-         } catch (error: any) {
-           console.error("Slide Gen Error:", error);
-           const modelMsgRef = doc(collection(db, `chats/${chatId}/messages`));
-           await setDoc(modelMsgRef, {
-             chatId: chatId,
-             userId: user.uid,
-             role: "model",
-             text: `Maaf, terjadi kesalahan tak terduga:\n\n${error?.message || "Unknown error"}`,
-             createdAt: serverTimestamp()
-           });
-           setSlideTaskState('idle');
-         } finally {
-           setIsLoading(false);
-           setSlideTaskState('idle');
-         }
-         return; // We skip the streaming part below
-      } else if (appMode === 'sheet') {
-         try {
-           let sysInstruction = `Anda adalah asisten pembuat tabel data. Buatlah data tabel yang diinginkan pengguna dalam format JSON. Output HANYA MERUPAKAN JSON JAWABAN VALID dengan format:
-{
-  "title": "Judul Tabel",
-  "columns": ["Kolom 1", "Kolom 2", "Kolom 3"],
-  "rows": [
-    { "cells": ["Baris 1 Kolom 1", "Baris 1 Kolom 2", "Baris 1 Kolom 3"] },
-    { "cells": ["Baris 2 Kolom 1", "Baris 2 Kolom 2", "Baris 2 Kolom 3"] }
-  ]
-}`;
-
-          setLoadingText("Membuat Sheet...");
-          
-          const response = await ai.models.generateContent({
-             model: "gemini-2.5-flash",
-             contents: contents, // User prompt
-             config: {
-               systemInstruction: sysInstruction,
-               responseMimeType: "application/json"
-             }
-          });
-
-          let sheetDataStr = response.text || "";
-          let sheetDataObj = null;
-          let isValidJson = false;
-          try {
-             const jsonMatch = sheetDataStr.match(/\{[\s\S]*\}/);
-             if (jsonMatch) {
-               sheetDataObj = JSON.parse(jsonMatch[0]);
-             } else {
-               sheetDataObj = JSON.parse(sheetDataStr.replace(/```json/gi, '').replace(/```/g, '').trim());
-             }
-             isValidJson = true;
-          } catch(e) {
-             console.error("Failed to parse sheet JSON", e);
-             sheetDataObj = null;
-          }
-
-          const modelMsgRef = doc(collection(db, `chats/${chatId}/messages`));
-          if (isValidJson && sheetDataObj) {
-            await setDoc(modelMsgRef, {
-               chatId: chatId,
-               userId: user.uid,
-               role: "model",
-               text: "Berikut adalah data tabel yang saya buat untuk Anda.",
-               createdAt: serverTimestamp(),
-               sheetData: sheetDataObj
-            });
-          } else {
-            await setDoc(modelMsgRef, {
-               chatId: chatId,
-               userId: user.uid,
-               role: "model",
-               text: "Maaf, terjadi kesalahan saat membuat tabel. API tidak mengembalikan format yang valid.\n\n```text\n" + sheetDataStr.substring(0, 200) + "...\n```",
-               createdAt: serverTimestamp()
-            });
-          }
-          
-         } catch (error: any) {
-           console.error("Sheet Gen Error:", error);
-           const modelMsgRef = doc(collection(db, `chats/${chatId}/messages`));
-           await setDoc(modelMsgRef, {
-             chatId: chatId,
-             userId: user.uid,
-             role: "model",
-             text: `Maaf, terjadi kesalahan tak terduga:\n\n${error?.message || "Unknown error"}`,
-             createdAt: serverTimestamp()
-           });
-         } finally {
-           setIsLoading(false);
-         }
-         return;
-      }
-
       let shouldMentionOrigin = contents.filter(c => c.role === "user").length <= 1; // Only mention in early conversation easily or when asked explicitly
       
       let sysInstruction = locationContext + `You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI. ${shouldMentionOrigin ? "You were created and developed by SuperRinz." : ""} Selalu tanyakan balik ke user mengenai topik pembicaraan agar obrolan panjang dan mengalir alami.\n\nIMPORTANT: You must respond in the ${language === "id" ? "Indonesian" : "English"} language.`;
 
-      if (appMode === 'learn') {
-         sysInstruction = locationContext + "Anda adalah seorang guru profesional yang cerdas, interaktif, dan menyenangkan. Pengguna akan memberikan topik yang ingin mereka pelajari. Tugas Anda: 1. Menjelaskan materi dengan singkat, padat, dan seru. 2. Memberikan kuis pilihan ganda (A, B, C, D) untuk menguji pemahaman pengguna. 3. Bereaksi secara interaktif terhadap jawaban pengguna (memberikan pujian/poin jika benar, koreksi dan penjelasan jika salah). 4. Menyediakan tugas harian atau latihan tambahan asyik untuk dikerjakan. 5. Selalu gunakan format markdown dengan blok kutipan atau formatting yang rapi. 6. Pastikan opsi kuis A, B, C, D mudah diidentifikasi (gunakan list markdown). Jangan selalu mengulang instruksi, langsung mulai pelajaran atau permainan/kuis pilihan ganda ketika ada input. Jadikan simulasi belajar ini seperti game seru!";
-      } else if (appMode === 'cv') {
-         sysInstruction = locationContext + "Anda adalah seorang asisten pembuat Curriculum Vitae (CV) dan resume profesional yang terampil (ATS Friendly). Tugas pertama Anda adalah memandu pengguna menyusun CV jika data mereka belum lengkap. Tanyakan secara proaktif namun bertahap (jangan sekaligus banyak) informasi seperti: Nama lengkap, kontak, profil/summary singkat, riwayat pendidikan, pengalaman kerja, keahlian, dan proyek. Jika pengguna kebingungan, berikan contoh singkat. Jika data sudah dirasa cukup untuk dibuatkan CV ATAU pengguna meminta untuk langsung dibuatkan dengan data seadanya, Tugas Anda selanjutnya: 1. Susun dokumen CV profesional untuk pengguna menggunakan format JSON yang valid. 2. Output HANYA code box JSON (```jsoncv\n...\n```) yang memuat skema untuk CVPreview. Berikut struktur JSON yang wajib ditaati: {\n\"personalInfo\": { \"name\": \"\", \"email\": \"\", \"phone\": \"\", \"location\": \"\", \"linkedin\": \"\", \"portfolio\": \"\", \"summary\": \"\" },\n\"experience\": [{ \"role\": \"\", \"company\": \"\", \"location\": \"\", \"startDate\": \"\", \"endDate\": \"\", \"description\": [\"\"] }],\n\"education\": [{ \"degree\": \"\", \"institution\": \"\", \"location\": \"\", \"startDate\": \"\", \"endDate\": \"\", \"gpa\": \"\" }],\n\"skills\": [{ \"category\": \"\", \"items\": [\"\"] }],\n\"projects\": [{ \"name\": \"\", \"description\": \"\", \"technologies\": [\"\"], \"link\": \"\" }]\n}. Anda juga boleh menyertakan teks panduan atau saran di luar kode JSON tersebut untuk membantu pengguna menyempurnakannya.";
+      if (appMode === 'drive') {
+         sysInstruction = locationContext + "Anda adalah asisten Google Drive cerdas yang akan membantu pengguna mencari dan mengelola file jika integrasi API tersedia, atau memandu langkah-langkah pengguna secara akurat terkait Google Drive.";
+      } else if (appMode === 'sheets') {
+         sysInstruction = locationContext + "Anda adalah ahlinya spreadsheet dan Google Sheets. Anda akan membantu pengguna meracik rumus (formulas), memproses data, atau membuat ringkasan langkah pengaturan Sheets.";
       } else if (aiModel === 'gemini-2.5-pro') {
          sysInstruction += " Kamu harus MENGKOMUNIKASIKAN proses berpikirmu sebelum menjawab pertanyaan. Untuk melakukan hal ini, selalu awali responmu dengan TAG <thinking> dan tutup dengan </thinking> dan isi didalamnya dengan analisis, penalaran, atau rencana kamu. Pastikan untuk MENGGUNAKAN format markdown di dalam tag thinking.";
       }
@@ -1359,7 +1134,7 @@ export default function App() {
       }, { merge: true });
 
       }
-
+      
       setStreamingMessageId(null);
       setStreamingText(null);
 
@@ -1411,13 +1186,6 @@ export default function App() {
       setIsLoading(false);
     }
   };
-
-  const isQuizTime = appMode === 'learn' && 
-    messages.length > 0 && 
-    messages[messages.length - 1].role === 'model' && 
-    !isLoading && 
-    /(?:^|\n)\s*(?:[-*]\s*)?A[\.)]\s/i.test(messages[messages.length - 1].text) && 
-    /(?:^|\n)\s*(?:[-*]\s*)?B[\.)]\s/i.test(messages[messages.length - 1].text);
 
   return (
     
@@ -1592,39 +1360,6 @@ export default function App() {
             // Greeting State
             <div className="flex-1 flex flex-col justify-center pb-20">
               <AnimatePresence mode="wait">
-                {appMode === 'slide' ? (
-                  <motion.div
-                    key="slide-greeting"
-                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.9, y: -20 }}
-                    transition={{ type: "spring", bounce: 0.4, duration: 0.6 }}
-                    className="flex flex-col items-center justify-center space-y-8 w-full"
-                  >
-                     <img src="/logo.png" alt="Logo" className="w-20 h-20 sm:w-24 sm:h-24 object-contain drop-shadow-2xl" />
-                     
-                     <div className="flex flex-col sm:flex-row gap-4 w-full max-w-2xl px-4">
-                       {/* Card 1: Jumlah Slide */}
-                       <div className="flex-1 bg-white/70 backdrop-blur-xl p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 flex flex-col items-center gap-5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-                          <h3 className="font-semibold text-gray-800 text-lg">Jumlah Slide</h3>
-                          <div className="flex items-center gap-4 bg-gray-50/80 p-2 rounded-2xl w-full justify-between">
-                            <button onClick={() => setSlideCount(Math.max(5, slideCount - 1))} disabled={slideCount <= 5} className={`w-12 h-12 flex flex-col items-center justify-center bg-white rounded-xl shadow-[0_2px_10px_rgb(0,0,0,0.04)] text-xl font-medium transition-colors ${slideCount <= 5 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}>-</button>
-                            <span className="font-bold text-2xl text-gray-800">{slideCount}</span>
-                            <button onClick={() => setSlideCount(Math.min(7, slideCount + 1))} disabled={slideCount >= 7} className={`w-12 h-12 flex flex-col items-center justify-center bg-white rounded-xl shadow-[0_2px_10px_rgb(0,0,0,0.04)] text-xl font-medium transition-colors ${slideCount >= 7 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}>+</button>
-                          </div>
-                       </div>
-                       
-                       {/* Card 2: Sumber Gambar */}
-                       <div className="flex-1 bg-white/70 backdrop-blur-xl p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 flex flex-col items-center gap-5 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all">
-                          <h3 className="font-semibold text-gray-800 text-lg">Gambar Generator</h3>
-                          <div className="flex bg-gray-50/80 p-2 rounded-2xl w-full">
-                            <button onClick={() => setSlideImageMedia('ai')} className={`flex flex-col items-center justify-center flex-1 py-3 rounded-xl font-semibold text-sm transition-all ${slideImageMedia === 'ai' ? 'bg-white shadow-[0_2px_10px_rgb(0,0,0,0.04)] text-purple-600' : 'text-gray-500 hover:text-gray-700'}`}>AI Model</button>
-                            <button onClick={() => setSlideImageMedia('search')} className={`flex flex-col items-center justify-center flex-1 py-3 rounded-xl font-semibold text-sm transition-all ${slideImageMedia === 'search' ? 'bg-white shadow-[0_2px_10px_rgb(0,0,0,0.04)] text-orange-600' : 'text-gray-500 hover:text-gray-700'}`}>Web Search</button>
-                          </div>
-                       </div>
-                     </div>
-                  </motion.div>
-                ) : (
                   <motion.div
                     key="normal-greeting"
                     initial={{ opacity: 0, y: 10 }}
@@ -1643,7 +1378,6 @@ export default function App() {
                       </h2>
                     </div>
                   </motion.div>
-                )}
               </AnimatePresence>
             </div>
           ) : (
@@ -1805,55 +1539,6 @@ export default function App() {
                                      >
                                         <Download className="w-4 h-4" />
                                         Download CSV
-                                     </button>
-                                  </div>
-                               </div>
-                            </div>
-                          </div>
-                        ) : message.slideData ? (
-                          <div className="flex flex-col w-full">
-                            <div className="flex items-center gap-3 mb-2 px-1">
-                              <img src="/logo.png" alt="Logo" className="w-8 h-8 shrink-0 object-contain" />
-                              <span className="font-semibold text-gray-800 text-[1.05rem]">SuperAI</span>
-                            </div>
-                            <div className="pl-11 w-full max-w-full">
-                               <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center gap-4">
-                                  <MonitorPlay className="w-12 h-12 text-purple-500" />
-                                  <h3 className="font-semibold text-gray-800 text-lg text-center">{message.slideData.title || "Presentasi Anda"}</h3>
-                                  <p className="text-sm text-gray-500 text-center -mt-2 mb-2">{message.slideData.slides?.length || 0} Slide • Dibuat menggunakan {message.slideMedia === 'ai' ? 'AI Generator' : 'Web Search'}</p>
-                                  
-                                  <div className="flex flex-col sm:flex-row items-center gap-3 w-full justify-center">
-                                     <button 
-                                        onClick={() => {
-                                            setSlidePreviewData(message.slideData);
-                                            setSlidePreviewMedia(message.slideMedia || 'ai');
-                                        }}
-                                        className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-600 font-medium transition-colors w-full sm:w-auto"
-                                     >
-                                        <Eye className="w-4 h-4" />
-                                        Lihat Preview
-                                     </button>
-                                     <button 
-                                        onClick={() => {
-                                            setSlidePreviewData(message.slideData);
-                                            setSlidePreviewMedia(message.slideMedia || 'ai');
-                                            setTimeout(() => handleDownloadPdf(), 500);
-                                        }}
-                                        className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-medium transition-colors w-full sm:w-auto shadow-md shadow-purple-600/20"
-                                     >
-                                        <Download className="w-4 h-4" />
-                                        Download PDF
-                                     </button>
-                                     <button 
-                                        onClick={() => {
-                                            setSlidePreviewData(message.slideData);
-                                            setSlidePreviewMedia(message.slideMedia || 'ai');
-                                            setTimeout(() => handleDownloadPptx(), 100);
-                                        }}
-                                        className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-medium transition-colors w-full sm:w-auto shadow-md shadow-orange-500/20"
-                                     >
-                                        <Download className="w-4 h-4" />
-                                        Download PPTX
                                      </button>
                                   </div>
                                </div>
@@ -2232,34 +1917,7 @@ export default function App() {
                     transition={{ duration: 0.4, ease: "easeOut" }}
                     className="flex justify-start w-full mt-2 mb-2"
                   >
-                     {slideTaskState !== 'idle' ? (
-                        <div className="flex flex-col items-start w-full pl-1">
-                          <div className="flex items-center gap-3 mb-2">
-                             <img src="/logo.png" alt="Logo" className="w-8 h-8 shrink-0 object-contain" />
-                             <span className="font-semibold text-gray-800 text-[1.05rem]">SuperAI</span>
-                          </div>
-                          <div className="pl-11 w-full max-w-sm">
-                             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col gap-3">
-                               <div className="flex items-center gap-3">
-                                  <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 ${slideTaskState === 'outline' ? 'border-purple-500 border-t-transparent animate-spin' : 'border-green-500 bg-green-500'}`}>
-                                     {slideTaskState !== 'outline' && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
-                                  </div>
-                                  <span className={`text-sm font-medium ${slideTaskState === 'outline' ? 'text-gray-900' : 'text-gray-500'}`}>Membuat kerangka presentasi</span>
-                               </div>
-                               <div className="flex items-center gap-3">
-                                  <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 ${slideTaskState === 'composing' ? 'border-purple-500 border-t-transparent animate-spin' : slideTaskState === 'rendering' ? 'border-green-500 bg-green-500' : 'border-gray-200'}`}>
-                                     {slideTaskState === 'rendering' && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
-                                  </div>
-                                  <span className={`text-sm font-medium ${slideTaskState === 'composing' ? 'text-gray-900' : slideTaskState === 'rendering' ? 'text-gray-500' : 'text-gray-400'}`}>Menyusun slide presentasi</span>
-                               </div>
-                               <div className="flex items-center gap-3">
-                                  <div className={`w-5 h-5 rounded-full flex items-center justify-center border-2 ${slideTaskState === 'rendering' ? 'border-purple-500 border-t-transparent animate-spin' : 'border-gray-200'}`}></div>
-                                  <span className={`text-sm font-medium ${slideTaskState === 'rendering' ? 'text-gray-900' : 'text-gray-400'}`}>Merender hasil PDF</span>
-                               </div>
-                             </div>
-                          </div>
-                        </div>
-                     ) : pendingMediaTask ? (
+                     {pendingMediaTask ? (
                         <div className="flex flex-col items-start w-full pl-1">
                           <div className="flex items-center gap-3 mb-2">
                              <img src="/logo.png" alt="Logo" className="w-8 h-8 shrink-0 object-contain" />
@@ -2403,27 +2061,11 @@ export default function App() {
               </div>
             )}
 
-            {isQuizTime && (
-              <div className="flex gap-2 px-4 pt-2 -mb-1 pb-1 overflow-x-auto scrollbar-hide">
-                {['A', 'B', 'C', 'D'].map(opt => (
-                  <button 
-                    key={opt}
-                    onClick={() => {
-                       handleSendMessage(opt);
-                    }}
-                    className="px-4 py-1.5 rounded-full bg-green-50 hover:bg-green-100 text-green-600 font-medium text-sm transition-colors border border-green-100"
-                  >
-                    Jawaban {opt}
-                  </button>
-                ))}
-              </div>
-            )}
-
             <textarea
               ref={textareaRef}
               value={inputValue}
               onChange={handleInput}
-              placeholder={appMode === 'learn' ? "Apa yang ingin dipelajari hari ini?" : appMode === 'generate_image' ? "Deskripsikan gambar yang ingin dibuat..." : appMode === 'search_image' ? "Apa yang ingin Anda cari..." : appMode === 'slide' ? "Topik presentasi apa yang ingin dibuat..." : appMode === 'sheet' ? "Data tabel apa yang ingin dibuat..." : appMode === 'cv' ? "Siapa nama dan data diri untuk CV ini..." : t.typeMessage}
+              placeholder={appMode === 'generate_image' ? "Deskripsikan gambar yang ingin dibuat..." : appMode === 'search_image' ? "Apa yang ingin Anda cari..." : appMode === 'drive' ? "Cari file di Google Drive..." : appMode === 'sheets' ? "Modifikasi data di Google Sheets..." : t.typeMessage}
               rows={1}
               className="w-full bg-transparent resize-none outline-none px-4 pt-3 pb-2 text-[1.05rem] text-gray-900 placeholder:text-gray-500 overflow-hidden"
             />
@@ -2483,21 +2125,17 @@ export default function App() {
                            <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'search_image' ? 'bg-orange-500 text-white' : 'bg-orange-50/80 text-orange-500 group-hover:bg-orange-100'}`}><Search className="w-5 h-5"/></div>
                            <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Cari Gambar</span>
                          </button>
-                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'learn' ? 'chat' : 'learn'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'learn' ? 'bg-green-100/50' : 'hover:bg-gray-50'}`}>
-                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'learn' ? 'bg-green-500 text-white' : 'bg-green-50/80 text-green-500 group-hover:bg-green-100'}`}><BookOpen className="w-5 h-5"/></div>
-                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Terpandu</span>
+                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'drive' ? 'chat' : 'drive'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'drive' ? 'bg-blue-100/50' : 'hover:bg-gray-50'}`}>
+                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'drive' ? 'bg-blue-500 text-white' : 'bg-blue-50/80 text-blue-500 group-hover:bg-blue-100'}`}>
+                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 22h20L12 2z"/><path d="M12 22L7 12l5-10 5 10-5 10z"/></svg>
+                           </div>
+                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Google Drive</span>
                          </button>
-                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'slide' ? 'chat' : 'slide'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'slide' ? 'bg-purple-100/50' : 'hover:bg-gray-50'}`}>
-                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'slide' ? 'bg-purple-500 text-white' : 'bg-purple-50/80 text-purple-500 group-hover:bg-purple-100'}`}><MonitorPlay className="w-5 h-5"/></div>
-                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Slide</span>
-                         </button>
-                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'sheet' ? 'chat' : 'sheet'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'sheet' ? 'bg-emerald-100/50' : 'hover:bg-gray-50'}`}>
-                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'sheet' ? 'bg-emerald-500 text-white' : 'bg-emerald-50/80 text-emerald-500 group-hover:bg-emerald-100'}`}><Table className="w-5 h-5"/></div>
-                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Sheet</span>
-                         </button>
-                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'cv' ? 'chat' : 'cv'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'cv' ? 'bg-pink-100/50' : 'hover:bg-gray-50'}`}>
-                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'cv' ? 'bg-pink-500 text-white' : 'bg-pink-50/80 text-pink-500 group-hover:bg-pink-100'}`}><Briefcase className="w-5 h-5"/></div>
-                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Buat CV</span>
+                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'sheets' ? 'chat' : 'sheets'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'sheets' ? 'bg-green-100/50' : 'hover:bg-gray-50'}`}>
+                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'sheets' ? 'bg-green-500 text-white' : 'bg-green-50/80 text-green-500 group-hover:bg-green-100'}`}>
+                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                           </div>
+                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Google Sheets</span>
                          </button>
                       </motion.div>
                     )}
@@ -2845,6 +2483,30 @@ export default function App() {
                          </div>
 
                          <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5 mt-8">
+                           <Globe className="w-4 h-4" /> Integrasi Workspace
+                         </h4>
+                         <div className="flex flex-col gap-3 mb-8">
+                           <div className="text-sm text-gray-500 mb-2">Hubungkan akun Google Drive & Google Sheets Anda untuk keperluan membaca dan menulis data ke spreadsheet dan drive.</div>
+                           <button 
+                             onClick={handleWorkspaceConnect} 
+                             className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${isWorkspaceConnected ? 'border-green-500 bg-green-50/50' : 'border-gray-100 hover:bg-gray-50'}`}
+                           >
+                             <div className="flex items-center gap-3">
+                                <div className="p-2 bg-white rounded-lg shadow-sm border border-gray-100 flex gap-2">
+                                  {/* Google Drive Logo (Fallback) */}
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500"><path d="M12 2L2 22h20L12 2z"/><path d="M12 22L7 12l5-10 5 10-5 10z"/></svg>
+                                  {/* Google Sheets Logo (Fallback) */}
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                                </div>
+                               <span className={`font-semibold ${isWorkspaceConnected ? 'text-green-700' : 'text-gray-800'}`}>
+                                 {isWorkspaceConnected ? 'Terhubung dengan Workspace' : 'Hubungkan Google Workspace'}
+                               </span>
+                             </div>
+                             {isWorkspaceConnected ? <Check className="w-5 h-5 text-green-600" /> : <ChevronRight className="w-5 h-5 text-gray-400" />}
+                           </button>
+                         </div>
+
+                         <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5 mt-8">
                            <SlidersHorizontal className="w-4 h-4" /> {(t as any).personalizationTitle}
                          </h4>
                          <div className="flex flex-col gap-3 mb-8">
@@ -3185,109 +2847,7 @@ export default function App() {
        )}
      </AnimatePresence>
 
-      {/* Slide Preview Overlay */}
-      <AnimatePresence>
-        {slidePreviewData && (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="fixed inset-0 bg-gray-100 z-[200] flex flex-col overflow-y-auto"
-          >
-            <div className="sticky top-0 bg-white/90 backdrop-blur-xl px-4 sm:px-8 py-4 flex items-center justify-between border-b border-gray-200/50 z-50 shadow-sm print:hidden">
-              <div className="flex flex-col">
-                <h2 className="font-bold text-lg sm:text-xl text-gray-800 line-clamp-1">{slidePreviewData.title || "Presentasi Anda"}</h2>
-                <span className="text-[13px] font-medium text-gray-500">{slidePreviewData.slides?.length || 0} Slide</span>
-              </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <button onClick={() => handleDownloadPdf()} className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-full font-semibold transition-colors flex items-center gap-2 shadow-md shadow-purple-600/20 text-sm">
-                  <Download className="w-4 h-4" /> <span className="hidden sm:inline">Export PDF</span>
-                </button>
-                <button onClick={() => handleDownloadPptx()} className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-full font-semibold transition-colors flex items-center gap-2 shadow-md shadow-orange-500/20 text-sm">
-                  <Download className="w-4 h-4" /> <span className="hidden sm:inline">Export PPTX</span>
-                </button>
-                <button onClick={() => setSlidePreviewData(null)} className="w-10 h-10 flex items-center justify-center hover:bg-gray-200 text-gray-600 rounded-full transition-colors flex-shrink-0 bg-gray-100">
-                  <X className="w-5 h-5"/>
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-4 sm:p-10 pb-32 flex flex-col items-center gap-10 sm:gap-16 w-full" id="slide-print-area">
-              <style>
-                {`
-                  @media print {
-                    @page { size: 1920px 1080px landscape !important; margin: 0 !important; }
-                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: white; margin: 0; padding: 0; }
-                    body * { visibility: hidden; }
-                    #slide-print-area, #slide-print-area * { visibility: visible; }
-                    #slide-print-area { position: absolute; left: 0; top: 0; width: 100vw; background: white; padding: 0 !important; gap: 0 !important; margin: 0 !important; }
-                    .slide-page { 
-                       width: 1920px !important; 
-                       height: 1080px !important; 
-                       max-width: none !important; 
-                       max-height: none !important; 
-                       border: none !important; 
-                       border-radius: 0 !important; 
-                       box-shadow: none !important; 
-                       page-break-after: always; 
-                       page-break-inside: avoid;
-                       display: flex !important; 
-                       margin: 0 !important; 
-                       padding: 0 !important;
-                       transform: scale(1) !important;
-                    }
-                  }
-                `}
-              </style>
-              
-              {/* Title Slide */}
-              <div className="slide-page w-full max-w-[1100px] aspect-video bg-white sm:rounded-3xl shadow-xl overflow-hidden flex flex-col items-center justify-center p-12 sm:p-24 relative outline outline-1 outline-gray-200/50 print:outline-none print:shadow-none mx-auto shrink-0 transition-transform">
-                <div className="absolute inset-0 bg-gradient-to-tr from-purple-50 via-white to-pink-50 opacity-60"></div>
-                <h1 className="text-5xl sm:text-[5rem] font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-purple-700 to-pink-600 text-center leading-[1.1] mb-8 relative z-10 tracking-tight">{slidePreviewData.title}</h1>
-                <div className="w-24 h-1.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full relative z-10 mb-8"></div>
-                <p className="text-xl sm:text-2xl text-gray-500 font-medium relative z-10 text-center tracking-wide">Dibuat oleh AI SuperAI</p>
-              </div>
 
-              {/* Content Slides */}
-              {slidePreviewData.slides?.map((slide: any, idx: number) => (
-                <div key={idx} className="slide-page w-full max-w-[1100px] aspect-video bg-white sm:rounded-3xl shadow-xl overflow-hidden flex flex-col sm:flex-row relative outline outline-1 outline-gray-200/50 print:outline-none print:shadow-none mx-auto shrink-0">
-                  <div className="flex-1 p-8 sm:p-16 flex flex-col justify-start">
-                    <h2 className="text-3xl sm:text-5xl font-bold text-gray-800 leading-tight mb-8 sm:mb-12 relative inline-block self-start">
-                       {slide.title}
-                       <div className="absolute -bottom-4 left-0 w-16 h-1.5 bg-purple-500 rounded-full"></div>
-                    </h2>
-                    <ul className="space-y-5 sm:space-y-8 flex-1 flex flex-col justify-center mb-6">
-                       {slide.content?.map((point: string, i: number) => (
-                         <li key={i} className="flex items-start gap-4 sm:gap-5 text-lg sm:text-[1.65rem] text-gray-600 leading-[1.4] font-medium">
-                           <span className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full shrink-0 mt-[0.6rem] shadow-sm" />
-                           <span className="flex-1">{point}</span>
-                         </li>
-                       ))}
-                    </ul>
-                    <div className="text-gray-400 font-bold font-mono tracking-widest uppercase text-xs sm:text-sm mt-auto select-none pt-6 border-t border-gray-100 flex items-center justify-between">
-                      <span>SuperAI</span>
-                      <span>{idx + 1}</span>
-                    </div>
-                  </div>
-                  {slide.imagePrompt && (
-                    <div className="w-full sm:w-[45%] h-64 sm:h-auto shrink-0 bg-gray-100 flex items-center justify-center overflow-hidden relative">
-                       <img 
-                         src={`https://image.pollinations.ai/prompt/${encodeURIComponent(slide.imagePrompt)}?width=800&height=1200&nologo=true`} 
-                         alt={slide.imagePrompt} 
-                         className="w-full h-full object-cover" 
-                         referrerPolicy="no-referrer"
-                         crossOrigin="anonymous"
-                       />
-                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80"></div>
-                       <div className="absolute bottom-4 right-5 sm:bottom-6 sm:right-6 bg-black/40 backdrop-blur-md text-white/90 text-[11px] px-3 py-1.5 rounded-full font-medium tracking-wide border border-white/10 shadow-lg">AI Generated</div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <AnimatePresence>
         {showClearConfirm && (

@@ -1,0 +1,185 @@
+1001 p: 0  |  userId: user.uid,
+1002 p: 0  |  role: "model",
+1003 p: 0  |  text: "_Error saat memproses permintaan pembuatan gambar. Coba lagi dengan prompt yang berbeda._",
+1004 p: 0  |  createdAt: serverTimestamp()
+1005 p: -1  |  });
+1006 p: -1  |  } finally {
+1007 p: -1  |  setPendingMediaTask(null);
+1008 p: -1  |  }
+1009 p: -1  |  } else if (appMode === 'search_image') {
+1010 p: -1  |  try {
+1011 p: -1  |  setPendingMediaTask('search_image'); // Re-use the shimmering loader
+1012 p: -1  |  
+1013 p: -1  |  const serperKey = (import.meta as any).env.VITE_SERPER_API_KEY;
+1014 p: -1  |  
+1015 p: -1  |  if (!serperKey) {
+1016 p: -1  |  const modelMsgRef = doc(collection(db, `chats/${chatId}/messages`));
+1017 p: 0  |  await setDoc(modelMsgRef, {
+1018 p: 0  |  chatId: chatId,
+1019 p: 0  |  userId: user.uid,
+1020 p: 0  |  role: "model",
+1021 p: 0  |  text: "Untuk menggunakan fitur *Cari Gambar*, Anda memerlukan API Key dari Serper.dev.\n\n1. Daftar di [Serper.dev](https://serper.dev/) dan dapatkan API Key Anda.\n2. Buka menu **⚙️ Settings -> Secrets** di aplikasi ini.\n3. Tambahkan secret dengan nama `VITE_SERPER_API_KEY` beserta isinya.\n\n_Catatan: Serper.dev memberikan 2.500 pencarian gratis saat pendaftaran!_",
+1022 p: 0  |  createdAt: serverTimestamp()
+1023 p: -1  |  });
+1024 p: -1  |  } else {
+1025 p: 0  |  const response = await ai.models.generateContent({
+1026 p: 0  |  model: 'gemini-2.5-flash',
+1027 p: 0  |  contents: [{ role: 'user', parts: [{ text: `Extract the main visual search keyword from this request: "${newMessageText}". Output only 1-3 english words best for a Google Images search engine. Output only the words.` }] }]
+1028 p: -1  |  });
+1029 p: -1  |  const keyword = response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "image";
+1030 p: -1  |  
+1031 p: 0  |  const searchRes = await fetch('https://google.serper.dev/images', {
+1032 p: 0  |  method: 'POST',
+1033 p: 0  |  headers: {
+1034 p: 0  |  'X-API-KEY': serperKey,
+1035 p: 0  |  'Content-Type': 'application/json'
+1036 p: 0  |  },
+1037 p: 0  |  body: JSON.stringify({ q: keyword }),
+1038 p: 0  |  signal: abortControllerRef.current?.signal
+1039 p: -1  |  });
+1040 p: -1  |  const searchData = await searchRes.json();
+1041 p: -1  |  
+1042 p: -1  |  let generatedMarkdown;
+1043 p: -1  |  if (searchData.images && searchData.images.length > 0) {
+1044 p: -1  |  const img = searchData.images[0];
+1045 p: -1  |  generatedMarkdown = `Berikut adalah gambar yang saya temukan untuk pencarian "${keyword}":\n\n![${img.title || 'Gambar Pencarian'}](${img.imageUrl})\n_Sumber: [${img.source}](${img.link})_`;
+1046 p: -1  |  } else {
+1047 p: -1  |  generatedMarkdown = `Maaf, saya tidak dapat menemukan gambar yang sesuai untuk pencarian "${keyword}".`;
+1048 p: -1  |  }
+1049 p: -1  |  const modelMsgRef = doc(collection(db, `chats/${chatId}/messages`));
+1050 p: 0  |  await setDoc(modelMsgRef, {
+1051 p: 0  |  chatId: chatId,
+1052 p: 0  |  userId: user.uid,
+1053 p: 0  |  role: "model",
+1054 p: 0  |  text: generatedMarkdown,
+1055 p: 0  |  createdAt: serverTimestamp()
+1056 p: -1  |  });
+1057 p: -1  |  }
+1058 p: -1  |  } catch (error) {
+1059 p: -1  |  console.error("Error searching image", error);
+1060 p: -1  |  const modelMsgRef = doc(collection(db, `chats/${chatId}/messages`));
+1061 p: 0  |  await setDoc(modelMsgRef, {
+1062 p: 0  |  chatId: chatId,
+1063 p: 0  |  userId: user.uid,
+1064 p: 0  |  role: "model",
+1065 p: 0  |  text: "_Error saat mengambil hasil pencarian dari server. Silakan coba lagi nanti._",
+1066 p: 0  |  createdAt: serverTimestamp()
+1067 p: -1  |  });
+1068 p: -1  |  } finally {
+1069 p: -1  |  setPendingMediaTask(null);
+1070 p: -1  |  }
+1071 p: -1  |  } else {
+1072 p: -1  |  let shouldMentionOrigin = contents.filter(c => c.role === "user").length <= 1; // Only mention in early conversation easily or when asked explicitly
+1073 p: -1  |  
+1074 p: -1  |  let sysInstruction = locationContext + `You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI. ${shouldMentionOrigin ? "You were created and developed by SuperRinz." : ""} Selalu tanyakan balik ke user mengenai topik pembicaraan agar obrolan panjang dan mengalir alami.\n\nIMPORTANT: You must respond in the ${language === "id" ? "Indonesian" : "English"} language.`;
+1075 p: -1  |  
+1076 p: -1  |  if (appMode === 'drive') {
+1077 p: -1  |  sysInstruction = locationContext + "Anda adalah asisten Google Drive cerdas yang akan membantu pengguna mencari dan mengelola file jika integrasi API tersedia, atau memandu langkah-langkah pengguna secara akurat terkait Google Drive.";
+1078 p: -1  |  } else if (appMode === 'sheets') {
+1079 p: -1  |  sysInstruction = locationContext + "Anda adalah ahlinya spreadsheet dan Google Sheets. Anda akan membantu pengguna meracik rumus (formulas), memproses data, atau membuat ringkasan langkah pengaturan Sheets.";
+1080 p: -1  |  } else if (aiModel === 'gemini-2.5-pro') {
+1081 p: -1  |  sysInstruction += " Kamu harus MENGKOMUNIKASIKAN proses berpikirmu sebelum menjawab pertanyaan. Untuk melakukan hal ini, selalu awali responmu dengan TAG <thinking> dan tutup dengan </thinking> dan isi didalamnya dengan analisis, penalaran, atau rencana kamu. Pastikan untuk MENGGUNAKAN format markdown di dalam tag thinking.";
+1082 p: -1  |  }
+1083 p: -1  |  
+1084 p: -1  |  if (customInstructions.trim() !== '') {
+1085 p: -1  |  sysInstruction += "\n\nInstruksi Tambahan dari Pengguna untuk Kamu (Penting! Patuhi apapun kondisinya):\n" + customInstructions.trim();
+1086 p: -1  |  }
+1087 p: -1  |  
+1088 p: 0  |  const response = await ai.models.generateContentStream({
+1089 p: 0  |  model: aiModel,
+1090 p: 0  |  config: {
+1091 p: 0  |  systemInstruction: sysInstruction,
+1092 p: 0  |  tools: toolsConfig
+1093 p: 0  |  },
+1094 p: 0  |  contents: contents,
+1095 p: -1  |  });
+1096 p: -1  |  
+1097 p: -1  |  let fullResponse = "";
+1098 p: -1  |  let chunksList: any[] = [];
+1099 p: -1  |  
+1100 p: -1  |  const modelMsgRef = doc(collection(db, `chats/${chatId}/messages`));
+1101 p: -1  |  
+1102 p: -1  |  setStreamingMessageId(modelMsgRef.id);
+1103 p: -1  |  setStreamingText("");
+1104 p: -1  |  
+1105 p: -1  |  // Save placeholder first so snapshot adds it.
+1106 p: 0  |  await setDoc(modelMsgRef, {
+1107 p: 0  |  chatId: chatId,
+1108 p: 0  |  userId: user.uid,
+1109 p: 0  |  role: "model",
+1110 p: 0  |  text: "",
+1111 p: 0  |  createdAt: serverTimestamp()
+1112 p: -1  |  });
+1113 p: -1  |  
+1114 p: -1  |  for await (const chunk of response) {
+1115 p: -1  |  if (abortControllerRef.current?.signal.aborted) {
+1116 p: -1  |  break;
+1117 p: -1  |  }
+1118 p: -1  |  const textToAppend = chunk.text;
+1119 p: -1  |  fullResponse += textToAppend;
+1120 p: -1  |  if (chunk.candidates?.[0]?.groundingMetadata?.groundingChunks) {
+1121 p: -1  |  chunksList.push(...chunk.candidates[0].groundingMetadata.groundingChunks);
+1122 p: -1  |  }
+1123 p: -1  |  setStreamingText(fullResponse);
+1124 p: -1  |  }
+1125 p: -1  |  
+1126 p: -1  |  const distinctChunks = Array.from(new Map(chunksList.map(item => [item.web?.uri, item])).values());
+1127 p: -1  |  
+1128 p: 0  |  await setDoc(modelMsgRef, {
+1129 p: 0  |  text: fullResponse,
+1130 p: 0  |  groundingChunks: distinctChunks.length > 0 ? distinctChunks : null
+1131 p: -1  |  }, { merge: true });
+1132 p: -1  |  
+1133 p: -1  |  }
+1134 p: -1  |  
+1135 p: -1  |  setStreamingMessageId(null);
+1136 p: -1  |  setStreamingText(null);
+1137 p: -1  |  
+1138 p: -1  |  // Play sound notification if enabled
+1139 p: -1  |  if (soundEnabled) {
+1140 p: -1  |  try {
+1141 p: -1  |  const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+1142 p: -1  |  if (AudioContext) {
+1143 p: -1  |  const ctx = new AudioContext();
+1144 p: -1  |  const osc = ctx.createOscillator();
+1145 p: -1  |  const gainNode = ctx.createGain();
+1146 p: -1  |  
+1147 p: -1  |  osc.type = 'sine';
+1148 p: -1  |  // A gentle, high pitch "ting" sound
+1149 p: -1  |  osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
+1150 p: -1  |  
+1151 p: -1  |  gainNode.gain.setValueAtTime(0, ctx.currentTime);
+1152 p: -1  |  // Quick attack
+1153 p: -1  |  gainNode.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.05);
+1154 p: -1  |  // Smooth decay
+1155 p: -1  |  gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+1156 p: -1  |  
+1157 p: -1  |  osc.connect(gainNode);
+1158 p: -1  |  gainNode.connect(ctx.destination);
+1159 p: -1  |  
+1160 p: -1  |  osc.start(ctx.currentTime);
+1161 p: -1  |  osc.stop(ctx.currentTime + 0.3);
+1162 p: -1  |  }
+1163 p: -1  |  } catch (e) {
+1164 p: -1  |  console.error("Audio playback failed", e);
+1165 p: -1  |  }
+1166 p: -1  |  }
+1167 p: -1  |  
+1168 p: -1  |  // Vibrate if haptics enabled
+1169 p: -1  |  if (hapticsEnabled && navigator.vibrate) {
+1170 p: -1  |  try {
+1171 p: -1  |  navigator.vibrate(50); // Small buzz
+1172 p: -1  |  } catch (e) {
+1173 p: -1  |  console.error("Haptics failed", e);
+1174 p: -1  |  }
+1175 p: -1  |  }
+1176 p: -1  |  
+1177 p: -1  |  } catch (error: any) {
+1178 p: -1  |  console.error("Error generating response:", error);
+1179 p: -1  |  if (error.name !== 'AbortError' && !abortControllerRef.current?.signal.aborted) {
+1180 p: -1  |  alert("Terjadi kesalahan: " + (error.message || String(error)));
+1181 p: -1  |  }
+1182 p: -1  |  } finally {
+1183 p: -1  |  setIsLoading(false);
+1184 p: -1  |  }
+1185 p: -1  |  };
