@@ -350,6 +350,42 @@ const LoginScreen = ({ onClose, onLoginWithGoogle }: { onClose: () => void, onLo
   );
 };
 
+const AccordionItem = ({ id, title, icon: Icon, openId, setOpenId, children }: { id: string, title: string, icon: any, openId: string | null, setOpenId: (id: string | null) => void, children: React.ReactNode }) => {
+  const isOpen = openId === id;
+  return (
+    <div className="border border-gray-100 rounded-[1.25rem] overflow-hidden mb-3 bg-white shadow-sm transition-all hover:border-gray-200">
+      <button 
+        onClick={() => setOpenId(isOpen ? null : id)}
+        className="w-full flex items-center justify-between p-4 sm:p-5 bg-white transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className={`p-2.5 rounded-xl transition-colors ${isOpen ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-gray-500'}`}>
+            <Icon className="w-5 h-5" />
+          </div>
+          <span className="font-semibold text-gray-800 text-[1.05rem]">{title}</span>
+        </div>
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isOpen ? 'bg-blue-50' : 'bg-gray-50'}`}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-90 text-blue-500' : ''}`}><path d="m9 18 6-6-6-6"/></svg>
+        </div>
+      </button>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden bg-gray-50/50"
+          >
+            <div className="p-4 sm:p-5 border-t border-gray-100/60">
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 export default function App() {
   const [showLoginScreen, setShowLoginScreen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -426,6 +462,7 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [profileTab, setProfileTab] = useState<"profile" | "settings">("profile");
   const [activeSettingsPage, setActiveSettingsPage] = useState<'main' | 'about' | 'privacy' | 'help'>('main');
+  const [openSettingId, setOpenSettingId] = useState<string | null>(null);
   const [language, setLanguage] = useState<"id" | "en">(() => {
     return (localStorage.getItem("app_language") as "id" | "en") || "id";
   });
@@ -2429,293 +2466,320 @@ export default function App() {
                       transition={{ duration: 0.2 }}
                       className="max-w-xl mx-auto px-4 sm:px-6 py-6 sm:py-10"
                     >
-                      <div className="bg-white border border-gray-100/80 rounded-[2rem] p-6 sm:p-8 shadow-sm mb-6 sm:mb-8">
-                         <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5">
-                           <Globe className="w-4 h-4" /> {t.languageTitle}
-                         </h4>
-                         <div className="flex flex-col gap-3 mb-8">
-                           <div className="text-sm text-gray-500 mb-2">{t.languageDesc}</div>
-                           <button 
-                             onClick={() => setLanguage('id')} 
-                             className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${language === 'id' ? 'border-blue-500 bg-blue-50/50' : 'border-gray-100 hover:bg-gray-50'}`}
-                           >
-                             <div className="flex items-center gap-3">
-                               <Globe className={`w-5 h-5 ${language === 'id' ? 'text-blue-500' : 'text-gray-400'}`} />
-                               <span className={`font-semibold ${language === 'id' ? 'text-blue-700' : 'text-gray-800'}`}>Indonesia</span>
+                      <div className="flex flex-col mb-6 sm:mb-8">
+                         <AccordionItem
+                           id="language"
+                           title={t.languageTitle}
+                           icon={Globe}
+                           openId={openSettingId}
+                           setOpenId={setOpenSettingId}
+                         >
+                           <div className="flex flex-col gap-3">
+                             <div className="text-sm text-gray-500 mb-1">{t.languageDesc}</div>
+                             <button 
+                               onClick={() => setLanguage('id')} 
+                               className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-all ${language === 'id' ? 'border-blue-500 bg-blue-50/50' : 'border-gray-100 bg-white hover:bg-gray-50'}`}
+                             >
+                               <div className="flex items-center gap-3">
+                                 <Globe className={`w-5 h-5 ${language === 'id' ? 'text-blue-500' : 'text-gray-400'}`} />
+                                 <span className={`font-semibold ${language === 'id' ? 'text-blue-700' : 'text-gray-800'}`}>Indonesia</span>
+                               </div>
+                               {language === 'id' && <Check className="w-5 h-5 text-blue-600" />}
+                             </button>
+                             <button 
+                               onClick={() => setLanguage('en')} 
+                               className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-all ${language === 'en' ? 'border-blue-500 bg-blue-50/50' : 'border-gray-100 bg-white hover:bg-gray-50'}`}
+                             >
+                               <div className="flex items-center gap-3">
+                                 <Globe className={`w-5 h-5 ${language === 'en' ? 'text-blue-500' : 'text-gray-400'}`} />
+                                 <span className={`font-semibold ${language === 'en' ? 'text-blue-700' : 'text-gray-800'}`}>English</span>
+                               </div>
+                               {language === 'en' && <Check className="w-5 h-5 text-blue-600" />}
+                             </button>
+                           </div>
+                         </AccordionItem>
+
+                         <AccordionItem
+                           id="workspace"
+                           title={language === 'en' ? 'Workspace Integration' : 'Integrasi Workspace'}
+                           icon={Globe}
+                           openId={openSettingId}
+                           setOpenId={setOpenSettingId}
+                         >
+                           <div className="flex flex-col gap-3">
+                             <div className="text-sm text-gray-500 mb-1">Hubungkan akun Google Drive & Google Sheets Anda untuk keperluan membaca dan menulis data ke spreadsheet dan drive.</div>
+                             <button 
+                               onClick={handleWorkspaceConnect} 
+                               className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-all ${isWorkspaceConnected ? 'border-green-500 bg-green-50/50' : 'border-gray-100 bg-white hover:bg-gray-50'}`}
+                             >
+                               <div className="flex items-center gap-3">
+                                  <div className="p-1.5 bg-white rounded-lg shadow-sm border border-gray-100 flex gap-2">
+                                    <GoogleDriveIcon className="w-5 h-5" />
+                                    <GoogleSheetsIcon className="w-5 h-5" />
+                                  </div>
+                                 <span className={`font-medium ${isWorkspaceConnected ? 'text-green-700' : 'text-gray-800'}`}>
+                                   {isWorkspaceConnected ? 'Terhubung dengan Workspace' : 'Hubungkan Google Workspace'}
+                                 </span>
+                               </div>
+                               {isWorkspaceConnected ? <Check className="w-5 h-5 text-green-600" /> : <ChevronRight className="w-5 h-5 text-gray-400" />}
+                             </button>
+                           </div>
+                         </AccordionItem>
+
+                         <AccordionItem
+                           id="personalization"
+                           title={(t as any).personalizationTitle}
+                           icon={SlidersHorizontal}
+                           openId={openSettingId}
+                           setOpenId={setOpenSettingId}
+                         >
+                           <div className="flex flex-col gap-3">
+                              <div className="w-full">
+                                <div className="flex flex-col gap-1 mb-3 select-none">
+                                  <span className="font-semibold text-gray-800">{(t as any).customInstructionsTitle}</span>
+                                  <span className="text-[13px] text-gray-500">{(t as any).customInstructionsDesc}</span>
+                                </div>
+                                <textarea
+                                  value={customInstructions}
+                                  onChange={(e) => setCustomInstructions(e.target.value)}
+                                  placeholder={(t as any).customInstructionsPlaceholder}
+                                  className="w-full bg-white border border-gray-200 rounded-xl p-3 text-sm text-gray-700 min-h-[100px] resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                />
+                              </div>
+                           </div>
+                         </AccordionItem>
+
+                         <AccordionItem
+                           id="notifications"
+                           title={(t as any).notificationsTitle}
+                           icon={Sparkles}
+                           openId={openSettingId}
+                           setOpenId={setOpenSettingId}
+                         >
+                           <div className="flex flex-col gap-3">
+                             <div 
+                               onClick={() => setSoundEnabled(!soundEnabled)}
+                               className="w-full flex items-center justify-between p-3.5 rounded-xl border border-gray-100 bg-white cursor-pointer hover:bg-gray-50 transition-colors"
+                             >
+                               <div className="flex flex-col gap-0.5 select-none">
+                                 <span className="font-semibold text-gray-800 text-sm">{(t as any).soundTitle}</span>
+                                 <span className="text-[13px] text-gray-500">{(t as any).soundDesc}</span>
+                               </div>
+                               <div className={`w-12 h-6 rounded-full flex items-center p-1 transition-colors duration-300 ${soundEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}>
+                                 <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${soundEnabled ? 'translate-x-[24px]' : 'translate-x-0'}`}></div>
+                               </div>
                              </div>
-                             {language === 'id' && <Check className="w-5 h-5 text-blue-600" />}
-                           </button>
-                           <button 
-                             onClick={() => setLanguage('en')} 
-                             className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${language === 'en' ? 'border-blue-500 bg-blue-50/50' : 'border-gray-100 hover:bg-gray-50'}`}
-                           >
-                             <div className="flex items-center gap-3">
-                               <Globe className={`w-5 h-5 ${language === 'en' ? 'text-blue-500' : 'text-gray-400'}`} />
-                               <span className={`font-semibold ${language === 'en' ? 'text-blue-700' : 'text-gray-800'}`}>English</span>
+                             <div 
+                               onClick={() => setHapticsEnabled(!hapticsEnabled)}
+                               className="w-full flex items-center justify-between p-3.5 rounded-xl border border-gray-100 bg-white cursor-pointer hover:bg-gray-50 transition-colors"
+                             >
+                               <div className="flex flex-col gap-0.5 select-none">
+                                 <span className="font-semibold text-gray-800 text-sm">{(t as any).hapticsTitle}</span>
+                                 <span className="text-[13px] text-gray-500">{(t as any).hapticsDesc}</span>
+                               </div>
+                               <div className={`w-12 h-6 rounded-full flex items-center p-1 transition-colors duration-300 ${hapticsEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}>
+                                 <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${hapticsEnabled ? 'translate-x-[24px]' : 'translate-x-0'}`}></div>
+                               </div>
                              </div>
-                             {language === 'en' && <Check className="w-5 h-5 text-blue-600" />}
-                           </button>
-                         </div>
+                           </div>
+                         </AccordionItem>
 
-                         <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5 mt-8">
-                           <Globe className="w-4 h-4" /> Integrasi Workspace
-                         </h4>
-                         <div className="flex flex-col gap-3 mb-8">
-                           <div className="text-sm text-gray-500 mb-2">Hubungkan akun Google Drive & Google Sheets Anda untuk keperluan membaca dan menulis data ke spreadsheet dan drive.</div>
-                           <button 
-                             onClick={handleWorkspaceConnect} 
-                             className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${isWorkspaceConnected ? 'border-green-500 bg-green-50/50' : 'border-gray-100 hover:bg-gray-50'}`}
-                           >
-                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-white rounded-lg shadow-sm border border-gray-100 flex gap-2">
-                                  {/* Google Drive Logo */}
-                                  <GoogleDriveIcon className="w-6 h-6" />
-                                  {/* Google Sheets Logo */}
-                                  <GoogleSheetsIcon className="w-6 h-6" />
-                                </div>
-                               <span className={`font-semibold ${isWorkspaceConnected ? 'text-green-700' : 'text-gray-800'}`}>
-                                 {isWorkspaceConnected ? 'Terhubung dengan Workspace' : 'Hubungkan Google Workspace'}
-                               </span>
+                         <AccordionItem
+                           id="data"
+                           title={language === 'en' ? 'Data & Storage' : 'Data & Penyimpanan'}
+                           icon={Layers}
+                           openId={openSettingId}
+                           setOpenId={setOpenSettingId}
+                         >
+                           <div className="flex flex-col gap-3">
+                             <div className="w-full p-3.5 rounded-xl border border-gray-100 bg-white">
+                               <div className="flex flex-col gap-0.5 mb-3 select-none">
+                                 <span className="font-semibold text-gray-800 text-sm">{(t as any).exportFormatTitle}</span>
+                                 <span className="text-[13px] text-gray-500">{(t as any).exportFormatDesc}</span>
+                               </div>
+                               <div className="flex bg-gray-100 p-1 rounded-xl text-sm font-medium">
+                                 <button 
+                                   onClick={() => setExportFormat('json')}
+                                   className={`flex-1 py-1.5 px-3 rounded-lg transition-all ${exportFormat === 'json' ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                                 >
+                                   JSON
+                                 </button>
+                                 <button 
+                                   onClick={() => setExportFormat('txt')}
+                                   className={`flex-1 py-1.5 px-3 rounded-lg transition-all ${exportFormat === 'txt' ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                                 >
+                                   TXT
+                                 </button>
+                                 <button 
+                                   onClick={() => setExportFormat('md')}
+                                   className={`flex-1 py-1.5 px-3 rounded-lg transition-all ${exportFormat === 'md' ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                                 >
+                                   Markdown
+                                 </button>
+                               </div>
                              </div>
-                             {isWorkspaceConnected ? <Check className="w-5 h-5 text-green-600" /> : <ChevronRight className="w-5 h-5 text-gray-400" />}
-                           </button>
-                         </div>
 
-                         <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5 mt-8">
-                           <SlidersHorizontal className="w-4 h-4" /> {(t as any).personalizationTitle}
-                         </h4>
-                         <div className="flex flex-col gap-3 mb-8">
-                            <div className="w-full p-4 rounded-2xl border border-gray-100 bg-gray-50 mt-2">
-                              <div className="flex flex-col gap-1 mb-4 select-none">
-                                <span className="font-semibold text-gray-800">{(t as any).customInstructionsTitle}</span>
-                                <span className="text-sm text-gray-500">{(t as any).customInstructionsDesc}</span>
-                              </div>
-                              <textarea
-                                value={customInstructions}
-                                onChange={(e) => setCustomInstructions(e.target.value)}
-                                placeholder={(t as any).customInstructionsPlaceholder}
-                                className="w-full bg-white border border-gray-200 rounded-xl p-3 text-sm text-gray-700 min-h-[100px] resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                              />
-                            </div>
-                         </div>
+                             <button onClick={handleExportData} className="w-full text-left flex items-center gap-3 hover:bg-blue-50/50 p-3.5 rounded-xl transition-colors border border-gray-100 bg-white group">
+                               <div className="p-2 bg-blue-50 text-blue-600 rounded-lg group-hover:scale-110 transition-transform">
+                                 <Download className="w-4 h-4" />
+                               </div>
+                               <div className="flex-1">
+                                 <div className="font-semibold text-gray-800 text-sm group-hover:text-blue-600 transition-colors">{t.exportDataTitle}</div>
+                                 <div className="text-[12px] text-gray-500 mt-0.5">{t.exportDataDesc}</div>
+                               </div>
+                             </button>
+                             <button onClick={confirmClearAllHistory} disabled={isClearingHistory} className="w-full text-left flex items-center gap-3 hover:bg-red-50/50 p-3.5 rounded-xl transition-colors border border-gray-100 bg-white group disabled:opacity-50 disabled:cursor-not-allowed">
+                               <div className="p-2 bg-red-50 text-red-600 rounded-lg group-hover:scale-110 transition-transform">
+                                 {isClearingHistory ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                               </div>
+                               <div className="flex-1">
+                                 <div className="font-semibold text-gray-800 text-sm group-hover:text-red-600 transition-colors">{t.clearHistoryTitle}</div>
+                                 <div className="text-[12px] text-gray-500 mt-0.5">{t.clearHistoryDesc}</div>
+                               </div>
+                             </button>
+                           </div>
+                         </AccordionItem>
 
-                         <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5 mt-8">
-                           <Sparkles className="w-4 h-4" /> {(t as any).notificationsTitle}
-                         </h4>
-                         <div className="flex flex-col gap-3 mb-8">
-                            <div 
-                              onClick={() => setSoundEnabled(!soundEnabled)}
-                              className="w-full flex items-center justify-between p-4 rounded-2xl border border-gray-100 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
-                            >
-                              <div className="flex flex-col gap-1 select-none">
-                                <span className="font-semibold text-gray-800">{(t as any).soundTitle}</span>
-                                <span className="text-sm text-gray-500">{(t as any).soundDesc}</span>
-                              </div>
-                              <div className={`w-14 h-7 rounded-full flex items-center p-1 transition-colors duration-300 ${soundEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}>
-                                <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${soundEnabled ? 'translate-x-[26px]' : 'translate-x-0'}`}></div>
-                              </div>
-                            </div>
-                            <div 
-                              onClick={() => setHapticsEnabled(!hapticsEnabled)}
-                              className="w-full flex items-center justify-between p-4 rounded-2xl border border-gray-100 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors mt-2"
-                            >
-                              <div className="flex flex-col gap-1 select-none">
-                                <span className="font-semibold text-gray-800">{(t as any).hapticsTitle}</span>
-                                <span className="text-sm text-gray-500">{(t as any).hapticsDesc}</span>
-                              </div>
-                              <div className={`w-14 h-7 rounded-full flex items-center p-1 transition-colors duration-300 ${hapticsEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}>
-                                <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${hapticsEnabled ? 'translate-x-[26px]' : 'translate-x-0'}`}></div>
-                              </div>
-                            </div>
-                         </div>
+                         <AccordionItem
+                           id="about"
+                           title={language === 'en' ? 'Information & Help' : 'Tentang & Bantuan'}
+                           icon={Info}
+                           openId={openSettingId}
+                           setOpenId={setOpenSettingId}
+                         >
+                           <div className="flex flex-col gap-3">
+                             <button onClick={() => setActiveSettingsPage('about')} className="w-full text-left flex items-center justify-between hover:bg-gray-50 p-3.5 rounded-xl transition-colors border border-gray-100 bg-white group">
+                               <div className="flex flex-col gap-0.5">
+                                 <span className="font-semibold text-gray-800 text-sm group-hover:text-blue-600 transition-colors">{t.aboutTitle}</span>
+                                 <span className="text-[13px] text-gray-500">{t.aboutDesc}</span>
+                               </div>
+                               <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                             </button>
+                             <button onClick={() => setActiveSettingsPage('privacy')} className="w-full text-left flex items-center justify-between hover:bg-gray-50 p-3.5 rounded-xl transition-colors border border-gray-100 bg-white group">
+                               <div className="flex flex-col gap-0.5">
+                                 <span className="font-semibold text-gray-800 text-sm group-hover:text-blue-600 transition-colors">{t.privacyTitle}</span>
+                                 <span className="text-[13px] text-gray-500">{t.privacyDesc}</span>
+                               </div>
+                               <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                             </button>
+                             <button onClick={() => setActiveSettingsPage('help')} className="w-full text-left flex items-center justify-between hover:bg-gray-50 p-3.5 rounded-xl transition-colors border border-gray-100 bg-white group">
+                               <div className="flex flex-col gap-0.5">
+                                 <span className="font-semibold text-gray-800 text-sm group-hover:text-blue-600 transition-colors">{t.helpTitle}</span>
+                                 <span className="text-[13px] text-gray-500">{t.helpDesc}</span>
+                               </div>
+                               <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                             </button>
+                           </div>
+                         </AccordionItem>
 
-                         <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5">
-                           <Layers className="w-4 h-4" /> {language === 'en' ? 'Data & Storage' : 'Data & Penyimpanan'}
-                         </h4>
-                         <div className="flex flex-col gap-3 mb-8">
-                            <div className="w-full p-4 rounded-2xl border border-gray-100 bg-gray-50 mt-2">
-                              <div className="flex flex-col gap-1 mb-4 select-none">
-                                <span className="font-semibold text-gray-800">{(t as any).exportFormatTitle}</span>
-                                <span className="text-sm text-gray-500">{(t as any).exportFormatDesc}</span>
-                              </div>
-                              <div className="flex bg-gray-200/60 p-1.5 rounded-xl text-sm font-medium">
-                                <button 
-                                  onClick={() => setExportFormat('json')}
-                                  className={`flex-1 py-2 px-3 rounded-lg transition-all ${exportFormat === 'json' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
-                                >
-                                  JSON
-                                </button>
-                                <button 
-                                  onClick={() => setExportFormat('txt')}
-                                  className={`flex-1 py-2 px-3 rounded-lg transition-all ${exportFormat === 'txt' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
-                                >
-                                  TXT
-                                </button>
-                                <button 
-                                  onClick={() => setExportFormat('md')}
-                                  className={`flex-1 py-2 px-3 rounded-lg transition-all ${exportFormat === 'md' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
-                                >
-                                  Markdown
-                                </button>
-                              </div>
-                            </div>
+                         <AccordionItem
+                           id="appearance"
+                           title={(t as any).themeTitle || "Tema & Tampilan"}
+                           icon={Layers}
+                           openId={openSettingId}
+                           setOpenId={setOpenSettingId}
+                         >
+                           <div className="flex flex-col gap-3">
+                             <div 
+                               onClick={toggleTheme}
+                               className="w-full flex items-center justify-between p-3.5 rounded-xl border border-gray-100 bg-white cursor-pointer hover:bg-gray-50 transition-colors"
+                             >
+                               <div className="flex flex-col gap-0.5 select-none">
+                                 <span className="font-semibold text-gray-800 text-sm">{language === 'en' ? 'Dark Mode' : 'Mode Gelap'}</span>
+                                 <span className="text-[13px] text-gray-500">{(t as any).themeDesc}</span>
+                               </div>
+                               <div className={`w-12 h-6 rounded-full flex items-center p-1 transition-colors duration-300 ${isDarkMode ? 'bg-blue-500' : 'bg-gray-300'}`}>
+                                 <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${isDarkMode ? 'translate-x-[24px]' : 'translate-x-0'}`}></div>
+                               </div>
+                             </div>
 
-                            <button onClick={handleExportData} className="w-full text-left flex items-center gap-4 hover:bg-gray-50 p-4 rounded-2xl transition-colors border border-gray-100 group">
-                              <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl group-hover:scale-110 transition-transform">
-                                <Download className="w-5 h-5" />
-                              </div>
-                              <div className="flex-1">
-                                <div className="font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">{t.exportDataTitle}</div>
-                                <div className="text-[13px] text-gray-500 mt-0.5">{t.exportDataDesc}</div>
-                              </div>
-                            </button>
-                            <button onClick={confirmClearAllHistory} disabled={isClearingHistory} className="w-full text-left flex items-center gap-4 hover:bg-red-50 p-4 rounded-2xl transition-colors border border-gray-100 group disabled:opacity-50 disabled:cursor-not-allowed">
-                              <div className="p-2.5 bg-red-50 text-red-600 rounded-xl group-hover:scale-110 transition-transform">
-                                {isClearingHistory ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
-                              </div>
-                              <div className="flex-1">
-                                <div className="font-semibold text-gray-800 group-hover:text-red-600 transition-colors">{t.clearHistoryTitle}</div>
-                                <div className="text-[13px] text-gray-500 mt-0.5">{t.clearHistoryDesc}</div>
-                              </div>
-                            </button>
-                         </div>
+                             <div className="w-full p-3.5 rounded-xl border border-gray-100 bg-white mt-1">
+                               <div className="flex flex-col gap-0.5 mb-3 select-none">
+                                 <span className="font-semibold text-gray-800 text-sm">{(t as any).textSizeTitle}</span>
+                                 <span className="text-[13px] text-gray-500">{(t as any).textSizeDesc}</span>
+                               </div>
+                               <div className="flex bg-gray-100 p-1 rounded-xl text-sm font-medium">
+                                 <button 
+                                   onClick={() => setTextSize('small')}
+                                   className={`flex-1 py-1.5 px-3 rounded-lg transition-all ${textSize === 'small' ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                                 >
+                                   {(t as any).textSizeSmall}
+                                 </button>
+                                 <button 
+                                   onClick={() => setTextSize('normal')}
+                                   className={`flex-1 py-1.5 px-3 rounded-lg transition-all ${textSize === 'normal' ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                                 >
+                                   {(t as any).textSizeNormal}
+                                 </button>
+                                 <button 
+                                   onClick={() => setTextSize('large')}
+                                   className={`flex-1 py-1.5 px-3 rounded-lg transition-all ${textSize === 'large' ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                                 >
+                                   {(t as any).textSizeLarge}
+                                 </button>
+                               </div>
+                             </div>
+                           </div>
+                         </AccordionItem>
 
-                         <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5">
-                           <Info className="w-4 h-4" /> {language === 'en' ? 'Information & Help' : 'Tentang & Bantuan'}
-                         </h4>
-                         <div className="flex flex-col gap-3 mb-8">
-                            <button onClick={() => setActiveSettingsPage('about')} className="w-full text-left flex flex-col gap-1 hover:bg-gray-50 p-4 rounded-2xl transition-colors border border-gray-100 group">
-                              <div className="flex justify-between items-center w-full">
-                                <span className="font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">{t.aboutTitle}</span>
-                                <ChevronRight className="w-4 h-4 text-gray-400" />
-                              </div>
-                              <span className="text-sm text-gray-500">{t.aboutDesc}</span>
-                            </button>
-                            <button onClick={() => setActiveSettingsPage('privacy')} className="w-full text-left flex flex-col gap-1 hover:bg-gray-50 p-4 rounded-2xl transition-colors border border-gray-100 group">
-                              <div className="flex justify-between items-center w-full">
-                                <span className="font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">{t.privacyTitle}</span>
-                                <ChevronRight className="w-4 h-4 text-gray-400" />
-                              </div>
-                              <span className="text-sm text-gray-500">{t.privacyDesc}</span>
-                            </button>
-                            <button onClick={() => setActiveSettingsPage('help')} className="w-full text-left flex flex-col gap-1 hover:bg-gray-50 p-4 rounded-2xl transition-colors border border-gray-100 group">
-                              <div className="flex justify-between items-center w-full">
-                                <span className="font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">{t.helpTitle}</span>
-                                <ChevronRight className="w-4 h-4 text-gray-400" />
-                              </div>
-                              <span className="text-sm text-gray-500">{t.helpDesc}</span>
-                            </button>
-                         </div>
-
-                         <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5">
-                           <Layers className="w-4 h-4" /> {(t as any).themeTitle || "Tema Tampilan"}
-                         </h4>
-                         <div className="flex flex-col gap-3 mb-8">
-                            <div 
-                              onClick={toggleTheme}
-                              className="w-full flex items-center justify-between p-4 rounded-2xl border border-gray-100 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
-                            >
-                              <div className="flex flex-col gap-1 select-none">
-                                <span className="font-semibold text-gray-800">{language === 'en' ? 'Dark Mode' : 'Mode Gelap'}</span>
-                                <span className="text-sm text-gray-500">{(t as any).themeDesc}</span>
-                              </div>
-                              <div className={`w-14 h-7 rounded-full flex items-center p-1 transition-colors duration-300 ${isDarkMode ? 'bg-blue-500' : 'bg-gray-300'}`}>
-                                <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${isDarkMode ? 'translate-x-[26px]' : 'translate-x-0'}`}></div>
-                              </div>
-                            </div>
-
-                            <div className="w-full p-4 rounded-2xl border border-gray-100 bg-gray-50 mt-2">
-                              <div className="flex flex-col gap-1 mb-4 select-none">
-                                <span className="font-semibold text-gray-800">{(t as any).textSizeTitle}</span>
-                                <span className="text-sm text-gray-500">{(t as any).textSizeDesc}</span>
-                              </div>
-                              <div className="flex bg-gray-200/60 p-1.5 rounded-xl text-sm font-medium">
-                                <button 
-                                  onClick={() => setTextSize('small')}
-                                  className={`flex-1 py-2 px-3 rounded-lg transition-all ${textSize === 'small' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
-                                >
-                                  {(t as any).textSizeSmall}
-                                </button>
-                                <button 
-                                  onClick={() => setTextSize('normal')}
-                                  className={`flex-1 py-2 px-3 rounded-lg transition-all ${textSize === 'normal' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
-                                >
-                                  {(t as any).textSizeNormal}
-                                </button>
-                                <button 
-                                  onClick={() => setTextSize('large')}
-                                  className={`flex-1 py-2 px-3 rounded-lg transition-all ${textSize === 'large' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
-                                >
-                                  {(t as any).textSizeLarge}
-                                </button>
-                              </div>
-                            </div>
-                         </div>
-
-                         <h4 className="flex items-center gap-2 text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5 mt-8">
-                           <SlidersHorizontal className="w-4 h-4" /> {language === 'en' ? 'Default Preferences' : 'Preferensi Default'}
-                         </h4>
-                         <div className="flex flex-col gap-3 mb-8">
-                            <div className="w-full p-4 rounded-2xl border border-gray-100 bg-gray-50">
-                              <div className="flex items-center gap-3 mb-4 select-none">
-                                <div className="p-2 bg-blue-100 text-blue-600 rounded-xl">
-                                  <Bot className="w-5 h-5" />
-                                </div>
-                                <div className="flex flex-col gap-0.5">
-                                  <span className="font-semibold text-gray-800 text-sm">{(t as any).defaultModelTitle}</span>
-                                  <span className="text-[13px] text-gray-500 max-w-[200px] leading-tight">{(t as any).defaultModelDesc}</span>
-                                </div>
-                              </div>
-                              <div className="flex bg-gray-200/60 p-1.5 rounded-xl text-sm font-medium">
-                                <button 
-                                  onClick={() => setAiModel('gemini-2.5-flash')}
-                                  className={`flex-1 py-2 px-3 rounded-lg transition-all ${aiModel === 'gemini-2.5-flash' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
-                                >
-                                  SuperAI-Fast
-                                </button>
-                                <button 
-                                  onClick={() => setAiModel('gemini-2.5-pro')}
-                                  className={`flex-1 py-2 px-3 rounded-lg transition-all ${aiModel === 'gemini-2.5-pro' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
-                                >
-                                  SuperAI-V5
-                                </button>
-                              </div>
-                            </div>
-                            <div className="w-full p-4 rounded-2xl border border-gray-100 bg-gray-50 mt-2">
-                              <div className="flex items-center gap-3 mb-4 select-none">
-                                <div className="p-2 bg-green-100 text-green-600 rounded-xl">
-                                  <LayoutTemplate className="w-5 h-5" />
-                                </div>
-                                <div className="flex flex-col gap-0.5">
-                                  <span className="font-semibold text-gray-800 text-sm">{(t as any).defaultModeTitle}</span>
-                                  <span className="text-[13px] text-gray-500 max-w-[200px] leading-tight">{(t as any).defaultModeDesc}</span>
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 text-sm font-medium">
-                                {/* Using available app modes */}
-                                {[
-                                  { id: 'chat', label: 'Chat' },
-                                  { id: 'generate_image', label: language === 'en' ? 'Generate Image' : 'Buat Gambar' },
-                                  { id: 'search_image', label: language === 'en' ? 'Search Image' : 'Cari Gambar' },
-                                  { id: 'learn', label: language === 'en' ? 'Learn' : 'Belajar' },
-                                  { id: 'slide', label: 'Slide' },
-                                  { id: 'sheet', label: 'Sheet' },
-                                  { id: 'cv', label: 'CV' }
-                                ].map((mode) => (
-                                  <button 
-                                    key={mode.id}
-                                    onClick={() => setAppMode(mode.id as any)}
-                                    className={`py-2 px-3 rounded-lg border transition-all text-left flex justify-between items-center ${appMode === mode.id ? 'border-blue-500 bg-blue-50/50 text-blue-700 shadow-sm' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}
-                                  >
-                                    <span className="capitalize">{mode.label}</span>
-                                    {appMode === mode.id && <Check className="w-4 h-4 text-blue-600" />}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                         </div>
+                         <AccordionItem
+                           id="preferences"
+                           title={language === 'en' ? 'Default Preferences' : 'Preferensi Model & AI'}
+                           icon={Bot}
+                           openId={openSettingId}
+                           setOpenId={setOpenSettingId}
+                         >
+                           <div className="flex flex-col gap-3">
+                             <div className="w-full p-3.5 rounded-xl border border-gray-100 bg-white">
+                               <div className="flex flex-col gap-0.5 mb-3 select-none">
+                                 <span className="font-semibold text-gray-800 text-sm">{(t as any).defaultModelTitle}</span>
+                                 <span className="text-[13px] text-gray-500">{(t as any).defaultModelDesc}</span>
+                               </div>
+                               <div className="flex bg-gray-100 p-1 rounded-xl text-sm font-medium">
+                                 <button 
+                                   onClick={() => setAiModel('gemini-2.5-flash')}
+                                   className={`flex-1 py-1.5 px-3 rounded-lg transition-all ${aiModel === 'gemini-2.5-flash' ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                                 >
+                                   SuperAI-Fast
+                                 </button>
+                                 <button 
+                                   onClick={() => setAiModel('gemini-2.5-pro')}
+                                   className={`flex-1 py-1.5 px-3 rounded-lg transition-all ${aiModel === 'gemini-2.5-pro' ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                                 >
+                                   SuperAI-V5
+                                 </button>
+                               </div>
+                             </div>
+                             <div className="w-full p-3.5 rounded-xl border border-gray-100 bg-white mt-1">
+                               <div className="flex flex-col gap-0.5 mb-3 select-none">
+                                 <span className="font-semibold text-gray-800 text-sm">{(t as any).defaultModeTitle}</span>
+                                 <span className="text-[13px] text-gray-500">{(t as any).defaultModeDesc}</span>
+                               </div>
+                               <div className="grid grid-cols-2 gap-2 text-sm font-medium">
+                                 {[
+                                   { id: 'chat', label: 'Chat' },
+                                   { id: 'generate_image', label: language === 'en' ? 'Generate Image' : 'Buat Gambar' },
+                                   { id: 'search_image', label: language === 'en' ? 'Search Image' : 'Cari Gambar' },
+                                   { id: 'learn', label: language === 'en' ? 'Learn' : 'Belajar' },
+                                   { id: 'slide', label: 'Slide' },
+                                   { id: 'sheet', label: 'Sheet' },
+                                   { id: 'cv', label: 'CV' }
+                                 ].map((mode) => (
+                                   <button 
+                                     key={mode.id}
+                                     onClick={() => setAppMode(mode.id as any)}
+                                     className={`py-1.5 px-3 rounded-lg border transition-all text-left flex justify-between items-center ${appMode === mode.id ? 'border-blue-500 bg-blue-50/50 text-blue-700 shadow-sm' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}
+                                   >
+                                     <span className="capitalize">{mode.label}</span>
+                                     {appMode === mode.id && <Check className="w-3.5 h-3.5 text-blue-600" />}
+                                   </button>
+                                 ))}
+                               </div>
+                             </div>
+                           </div>
+                         </AccordionItem>
                          
-                         <div className="pt-6 border-t border-gray-100 flex flex-col items-center justify-center gap-2">
+                         <div className="pt-6 mt-4 border-t border-gray-100/60 flex flex-col items-center justify-center gap-2">
                             <span className="text-sm text-gray-400 font-medium tracking-wide">{(t as any).appVersion || "App Version"} 1.2.0</span>
                             <span className="text-xs text-gray-300">© 2026 SuperRinz | SuperAI Inc.</span>
                          </div>
