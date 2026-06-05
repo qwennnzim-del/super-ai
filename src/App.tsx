@@ -9,6 +9,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { InteractiveTable } from './InteractiveTable';
 import { DrivePickerModal } from './DrivePickerModal';
 
 const TextAlignStartIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -391,7 +392,7 @@ export default function App() {
   const [exportFormat, setExportFormat] = useState<"json" | "txt" | "md">(() => {
     return (localStorage.getItem("app_export_format") as "json" | "txt" | "md") || "json";
   });
-  const [isWorkspaceConnected, setIsWorkspaceConnected] = useState(false);
+  const [isWorkspaceConnected, setIsWorkspaceConnected] = useState<boolean>(false);
   const [workspaceToken, setWorkspaceToken] = useState<string | null>(null);
 
   const handleWorkspaceConnect = async () => {
@@ -401,6 +402,9 @@ export default function App() {
       if (credential?.accessToken) {
         setWorkspaceToken(credential.accessToken);
         setIsWorkspaceConnected(true);
+        if (user) {
+          await setDoc(doc(db, "users", user.uid), { workspaceToken: credential.accessToken }, { merge: true });
+        }
       }
     } catch (err: any) {
       console.error(err);
@@ -519,6 +523,13 @@ export default function App() {
         if (data.photoURL) setCustomPhotoURL(data.photoURL);
         if (data.displayName) setCustomDisplayName(data.displayName);
         if (data.bio) setUserBio(data.bio);
+        if (data.workspaceToken) {
+          setWorkspaceToken(data.workspaceToken);
+          setIsWorkspaceConnected(true);
+        } else {
+          setWorkspaceToken(null);
+          setIsWorkspaceConnected(false);
+        }
         
         let shouldUpdate = false;
         let pCredits = data.credits !== undefined ? data.credits : 50;
@@ -1075,9 +1086,7 @@ export default function App() {
       
       let sysInstruction = locationContext + `You are SuperAI, an intelligent and helpful AI assistant. Your name is SuperAI. ${shouldMentionOrigin ? "You were created and developed by SuperRinz." : ""} Selalu tanyakan balik ke user mengenai topik pembicaraan agar obrolan panjang dan mengalir alami.\n\nIMPORTANT: You must respond in the ${language === "id" ? "Indonesian" : "English"} language.`;
 
-      if (appMode === 'drive') {
-         sysInstruction = locationContext + "Anda adalah asisten Google Drive cerdas yang akan membantu pengguna mencari dan mengelola file jika integrasi API tersedia, atau memandu langkah-langkah pengguna secara akurat terkait Google Drive.";
-      } else if (appMode === 'sheets') {
+      if (appMode === 'sheets') {
          sysInstruction = locationContext + "Anda adalah ahlinya spreadsheet dan Google Sheets. Anda akan membantu pengguna meracik rumus (formulas), memproses data, atau membuat ringkasan langkah pengaturan Sheets.";
       } else if (aiModel === 'gemini-2.5-pro') {
          sysInstruction += " Kamu harus MENGKOMUNIKASIKAN proses berpikirmu sebelum menjawab pertanyaan. Untuk melakukan hal ini, selalu awali responmu dengan TAG <thinking> dan tutup dengan </thinking> dan isi didalamnya dengan analisis, penalaran, atau rencana kamu. Pastikan untuk MENGGUNAKAN format markdown di dalam tag thinking.";
@@ -1459,88 +1468,49 @@ export default function App() {
                               <span className="font-semibold text-gray-800 text-[1.05rem]">SuperAI</span>
                             </div>
                             <div className="pl-11 w-full max-w-full">
-                               <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col items-center gap-4">
-                                  <Table className="w-12 h-12 text-emerald-500" />
-                                  <h3 className="font-semibold text-gray-800 text-lg text-center">{message.sheetData.title || "Data Sheet Anda"}</h3>
-                                  <p className="text-sm text-gray-500 text-center -mt-2 mb-4">{message.sheetData.rows?.length || 0} Baris Data</p>
-                                  
-                                  <div className="w-full overflow-x-auto rounded-xl border border-gray-200">
-                                    <table className="w-full text-sm text-left">
-                                      <thead className="text-xs text-gray-700 bg-gray-50 uppercase">
-                                        <tr>
-                                          {message.sheetData.columns?.map((col: string, i: number) => (
-                                            <th key={i} className="px-6 py-3 font-semibold whitespace-nowrap">{col}</th>
-                                          ))}
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {message.sheetData.rows?.map((rowObj: any, i: number) => (
-                                          <tr key={i} className="bg-white border-b hover:bg-gray-50">
-                                            {rowObj.cells?.map((val: string, j: number) => (
-                                              <td key={j} className="px-6 py-4 whitespace-nowrap">{val}</td>
-                                            ))}
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                  <p className="text-xs text-gray-500 w-full text-left mt-1">
-                                    💡 <span className="font-medium text-gray-600">Tips:</span> Anda bisa klik Download CSV lalu langsung membukanya di Excel/Google Sheets, atau Salin Tabel dan Paste (Ctrl+V / Cmd+V) langsung ke cell pertama di Excel/Sheet Anda.
-                                  </p>
-
-                                  <div className="flex w-full justify-end mt-2 gap-3 flex-wrap">
-                                     <button 
-                                        onClick={() => {
-                                          const tsvContent = message.sheetData.columns.join("\t") + "\n"
-                                              + message.sheetData.rows.map((rowObj: any) => (rowObj.cells || []).join("\t")).join("\n");
-                                          
-                                          if (navigator.clipboard && window.isSecureContext) {
-                                            navigator.clipboard.writeText(tsvContent);
-                                            setCopiedId(message.id + "-table");
-                                            setTimeout(() => setCopiedId(null), 2000);
-                                          } else {
-                                            const textArea = document.createElement("textarea");
-                                            textArea.value = tsvContent;
-                                            textArea.style.position = "absolute";
-                                            textArea.style.left = "-999999px";
-                                            document.body.prepend(textArea);
-                                            textArea.select();
-                                            try {
-                                              document.execCommand('copy');
-                                              setCopiedId(message.id + "-table");
-                                              setTimeout(() => setCopiedId(null), 2000);
-                                            } catch (error) {
-                                              console.error(error);
-                                            } finally {
-                                              textArea.remove();
-                                            }
-                                          }
-                                        }}
-                                        className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-50 font-medium transition-colors w-full sm:w-auto"
-                                     >
-                                        {copiedId === message.id + "-table" ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                                        {copiedId === message.id + "-table" ? "Tersalin!" : "Salin Tabel"}
-                                     </button>
-                                     <button 
-                                        onClick={() => {
-                                          const csvContent = "data:text/csv;charset=utf-8," 
-                                              + message.sheetData.columns.map((e: string) => `"${e.toString().replace(/"/g, '""')}"`).join(",") + "\n"
-                                              + message.sheetData.rows.map((rowObj: any) => (rowObj.cells || []).map((v: any) => `"${(v || '').toString().replace(/"/g, '""')}"`).join(",")).join("\n");
-                                          const encodedUri = encodeURI(csvContent);
-                                          const link = document.createElement("a");
-                                          link.setAttribute("href", encodedUri);
-                                          link.setAttribute("download", (message.sheetData.title || "sheet") + ".csv");
-                                          document.body.appendChild(link);
-                                          link.click();
-                                          document.body.removeChild(link);
-                                        }}
-                                        className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors w-full sm:w-auto shadow-md shadow-emerald-500/20"
-                                     >
-                                        <Download className="w-4 h-4" />
-                                        Download CSV
-                                     </button>
-                                  </div>
-                               </div>
+                               <InteractiveTable 
+                                 data={message.sheetData} 
+                                 messageId={message.id}
+                                 copiedId={copiedId}
+                                 onCopy={() => {
+                                   const tsvContent = (message.sheetData.columns || []).join("\t") + "\n"
+                                       + (message.sheetData.rows || []).map((rowObj: any) => (rowObj.cells || []).join("\t")).join("\n");
+                                   
+                                   if (navigator.clipboard && window.isSecureContext) {
+                                     navigator.clipboard.writeText(tsvContent);
+                                     setCopiedId(message.id + "-table");
+                                     setTimeout(() => setCopiedId(null), 2000);
+                                   } else {
+                                     const textArea = document.createElement("textarea");
+                                     textArea.value = tsvContent;
+                                     textArea.style.position = "absolute";
+                                     textArea.style.left = "-999999px";
+                                     document.body.prepend(textArea);
+                                     textArea.select();
+                                     try {
+                                       document.execCommand('copy');
+                                       setCopiedId(message.id + "-table");
+                                       setTimeout(() => setCopiedId(null), 2000);
+                                     } catch (error) {
+                                       console.error(error);
+                                     } finally {
+                                       textArea.remove();
+                                     }
+                                   }
+                                 }}
+                                 onDownload={() => {
+                                    const csvContent = "data:text/csv;charset=utf-8," 
+                                        + (message.sheetData.columns || []).map((e: string) => `"${e.toString().replace(/"/g, '""')}"`).join(",") + "\n"
+                                        + (message.sheetData.rows || []).map((rowObj: any) => (rowObj.cells || []).map((v: any) => `"${(v || '').toString().replace(/"/g, '""')}"`).join(",")).join("\n");
+                                    const encodedUri = encodeURI(csvContent);
+                                    const link = document.createElement("a");
+                                    link.setAttribute("href", encodedUri);
+                                    link.setAttribute("download", (message.sheetData.title || "sheet") + ".csv");
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                 }}
+                               />
                             </div>
                           </div>
                         ) : (
@@ -2043,16 +2013,21 @@ export default function App() {
             {currentAttachments.length > 0 && (
               <div className="flex flex-wrap gap-2 px-4 pt-2 pb-1">
                 {currentAttachments.map((att, idx) => (
-                  <div key={idx} className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-full">
-                    {att.file.type.startsWith('image/') ? (
-                      <div className="w-5 h-5 rounded overflow-hidden shrink-0">
+                  <div key={idx} className="flex items-center gap-2 bg-white border border-gray-200 shadow-sm px-3 py-1.5 rounded-full">
+                    {att.mimeType?.startsWith('image/') ? (
+                      <div className="w-5 h-5 rounded overflow-hidden shrink-0 ring-1 ring-black/5">
                          <img src={att.dataUrl} alt={att.name} className="w-full h-full object-cover" />
                       </div>
                     ) : (
-                      <FileText className="w-4 h-4 text-gray-500" />
+                      <FileText className="w-4 h-4 text-blue-500" />
                     )}
-                    <span className="text-xs font-medium text-gray-700 max-w-[120px] truncate">{att.name}</span>
-                    <button onClick={() => removeAttachment(idx)} className="ml-1 text-gray-400 hover:text-gray-600 transition-colors">
+                    <span className="text-xs font-semibold text-gray-700 max-w-[120px] truncate">{att.name}</span>
+                    {att.file && (
+                      <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">
+                        {(att.file.size / 1024).toFixed(0)} KB
+                      </span>
+                    )}
+                    <button onClick={() => removeAttachment(idx)} className="ml-1 p-0.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -2064,7 +2039,7 @@ export default function App() {
               ref={textareaRef}
               value={inputValue}
               onChange={handleInput}
-              placeholder={appMode === 'generate_image' ? "Deskripsikan gambar yang ingin dibuat..." : appMode === 'search_image' ? "Apa yang ingin Anda cari..." : appMode === 'drive' ? "Cari file di Google Drive..." : appMode === 'sheets' ? "Modifikasi data di Google Sheets..." : t.typeMessage}
+              placeholder={appMode === 'generate_image' ? "Deskripsikan gambar yang ingin dibuat..." : appMode === 'search_image' ? "Apa yang ingin Anda cari..." : appMode === 'sheets' ? "Modifikasi data di Google Sheets..." : t.typeMessage}
               rows={1}
               className="w-full bg-transparent resize-none outline-none px-4 pt-3 pb-2 text-[1.05rem] text-gray-900 placeholder:text-gray-500 overflow-hidden"
             />
@@ -2093,9 +2068,6 @@ export default function App() {
                     </button>
                     <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left">
                        <FileText className="w-4 h-4 text-gray-500" /> File
-                    </button>
-                    <button onClick={() => { setAttachmentMenuOpen(false); setIsDrivePickerOpen(true); }} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left border-t border-gray-50 mt-1 pt-3">
-                       <CloudSun className="w-4 h-4 text-blue-500" /> Google Drive
                     </button>
                   </div>
                 )}
@@ -2127,8 +2099,8 @@ export default function App() {
                            <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'search_image' ? 'bg-orange-500 text-white' : 'bg-orange-50/80 text-orange-500 group-hover:bg-orange-100'}`}><Search className="w-5 h-5"/></div>
                            <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Cari Gambar</span>
                          </button>
-                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'drive' ? 'chat' : 'drive'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'drive' ? 'bg-blue-100/50' : 'hover:bg-gray-50'}`}>
-                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'drive' ? 'bg-blue-500 text-white' : 'bg-blue-50/80 text-blue-500 group-hover:bg-blue-100'}`}>
+                         <button onClick={() => { setFeatureMenuOpen(false); setIsDrivePickerOpen(true); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${isDrivePickerOpen ? 'bg-blue-100/50' : 'hover:bg-gray-50'}`}>
+                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${isDrivePickerOpen ? 'bg-blue-500 text-white' : 'bg-blue-50/80 text-blue-500 group-hover:bg-blue-100'}`}>
                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 22h20L12 2z"/><path d="M12 22L7 12l5-10 5 10-5 10z"/></svg>
                            </div>
                            <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Google Drive</span>
@@ -2935,8 +2907,8 @@ export default function App() {
            setIsDrivePickerOpen(false);
            setSettingsOpen(true);
         }}
-        onSelectFile={(name, dataUrl, mimeType) => {
-           setCurrentAttachments(prev => [...prev, { name, dataUrl, mimeType }]);
+        onSelectFile={(name, dataUrl, mimeType, fileData) => {
+           setCurrentAttachments(prev => [...prev, { file: fileData, name, dataUrl, mimeType }]);
         }}
         t={t}
       />
