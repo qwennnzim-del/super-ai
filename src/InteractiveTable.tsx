@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Table, Download, Copy, Search, ArrowUpDown, ChevronDown, Check, Columns, Maximize2, X, PlusCircle, PenLine } from 'lucide-react';
+import { Download, Copy, Search, ArrowUpDown, ChevronDown, Check, Columns, Maximize2, X, PlusCircle, PenLine } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { GoogleSheetsIcon } from './GoogleIcons';
 
 interface SheetData {
   title?: string;
@@ -28,13 +29,13 @@ export const InteractiveTable: React.FC<InteractiveTableProps> = ({ data, onCopy
 
   // Filter and sort
   const filteredRows = rawRows.filter(row => 
-    row.cells.some(cell => cell.toLowerCase().includes(searchTerm.toLowerCase()))
+    row.cells.some(cell => String(cell || '').toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const sortedRows = [...filteredRows].sort((a, b) => {
     if (sortCol === null) return 0;
-    const aVal = a.cells[sortCol] || '';
-    const bVal = b.cells[sortCol] || '';
+    const aVal = String(a.cells[sortCol] || '');
+    const bVal = String(b.cells[sortCol] || '');
     const comparison = aVal.localeCompare(bVal, undefined, { numeric: true, sensitivity: 'base' });
     return sortAsc ? comparison : -comparison;
   });
@@ -62,8 +63,8 @@ export const InteractiveTable: React.FC<InteractiveTableProps> = ({ data, onCopy
        {/* Toolbar */}
        <div className="flex flex-col sm:flex-row items-center justify-between p-4 border-b border-gray-100 bg-gray-50/50 gap-4 shrink-0">
          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
-               <Table className="w-5 h-5 text-emerald-600" />
+            <div className="w-10 h-10 rounded-xl bg-emerald-50/50 flex items-center justify-center shrink-0">
+               <GoogleSheetsIcon className="w-6 h-6" />
             </div>
             <div className="min-w-0 flex-1">
                <h3 className="font-semibold text-gray-800 truncate">{data.title || 'Data Sheet'}</h3>
@@ -128,7 +129,7 @@ export const InteractiveTable: React.FC<InteractiveTableProps> = ({ data, onCopy
                      {absIndex + 1}
                    </td>
                    {row.cells.map((cell, colIndex) => {
-                      const displayVal = getCellValue(absIndex, colIndex, cell);
+                      const displayVal = getCellValue(absIndex, colIndex, String(cell || ''));
                       return (
                         <td key={colIndex} className="border-r border-b border-gray-100 relative group/cell min-w-[120px] p-0">
                            <input 
@@ -200,8 +201,8 @@ export const InteractiveTable: React.FC<InteractiveTableProps> = ({ data, onCopy
             >
               <div className="flex items-center justify-between p-4 bg-white border-b border-gray-100 shrink-0">
                 <div className="flex items-center gap-3">
-                   <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
-                     <Table className="w-4 h-4 text-emerald-600" />
+                   <div className="w-8 h-8 rounded-lg bg-emerald-50/50 flex items-center justify-center">
+                     <GoogleSheetsIcon className="w-5 h-5" />
                    </div>
                    <h2 className="font-bold text-gray-800 text-lg">Mode Layar Penuh</h2>
                 </div>

@@ -11,6 +11,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { InteractiveTable } from './InteractiveTable';
 import { DrivePickerModal } from './DrivePickerModal';
+import { GoogleDriveIcon, GoogleSheetsIcon } from './GoogleIcons';
 
 const TextAlignStartIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 5H3"/><path d="M15 12H3"/><path d="M17 19H3"/></svg>
@@ -2100,14 +2101,14 @@ export default function App() {
                            <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Cari Gambar</span>
                          </button>
                          <button onClick={() => { setFeatureMenuOpen(false); setIsDrivePickerOpen(true); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${isDrivePickerOpen ? 'bg-blue-100/50' : 'hover:bg-gray-50'}`}>
-                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${isDrivePickerOpen ? 'bg-blue-500 text-white' : 'bg-blue-50/80 text-blue-500 group-hover:bg-blue-100'}`}>
-                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 22h20L12 2z"/><path d="M12 22L7 12l5-10 5 10-5 10z"/></svg>
+                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${isDrivePickerOpen ? 'bg-blue-50 text-white' : 'bg-blue-50 text-blue-500 group-hover:bg-blue-100'}`}>
+                             <GoogleDriveIcon className="w-6 h-6" />
                            </div>
                            <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Google Drive</span>
                          </button>
                          <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'sheets' ? 'chat' : 'sheets'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'sheets' ? 'bg-green-100/50' : 'hover:bg-gray-50'}`}>
-                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'sheets' ? 'bg-green-500 text-white' : 'bg-green-50/80 text-green-500 group-hover:bg-green-100'}`}>
-                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'sheets' ? 'bg-green-50 text-white' : 'bg-green-50 text-green-500 group-hover:bg-green-100'}`}>
+                              <GoogleSheetsIcon className="w-6 h-6" />
                            </div>
                            <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Google Sheets</span>
                          </button>
@@ -2467,10 +2468,10 @@ export default function App() {
                            >
                              <div className="flex items-center gap-3">
                                 <div className="p-2 bg-white rounded-lg shadow-sm border border-gray-100 flex gap-2">
-                                  {/* Google Drive Logo (Fallback) */}
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500"><path d="M12 2L2 22h20L12 2z"/><path d="M12 22L7 12l5-10 5 10-5 10z"/></svg>
-                                  {/* Google Sheets Logo (Fallback) */}
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                                  {/* Google Drive Logo */}
+                                  <GoogleDriveIcon className="w-6 h-6" />
+                                  {/* Google Sheets Logo */}
+                                  <GoogleSheetsIcon className="w-6 h-6" />
                                 </div>
                                <span className={`font-semibold ${isWorkspaceConnected ? 'text-green-700' : 'text-gray-800'}`}>
                                  {isWorkspaceConnected ? 'Terhubung dengan Workspace' : 'Hubungkan Google Workspace'}

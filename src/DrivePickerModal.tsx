@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Search, FileText, Image as ImageIcon, Loader2, CloudSun, CheckCircle2, Film, Folder, FileArchive, LayoutGrid, List } from 'lucide-react';
+import { GoogleDriveIcon } from './GoogleIcons';
+import { X, Search, FileText, Image as ImageIcon, Loader2, CheckCircle2, Film, Folder, FileArchive, LayoutGrid, List } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface DriveFile {
@@ -140,8 +141,8 @@ export const DrivePickerModal: React.FC<DrivePickerModalProps> = ({
       >
         <div className="flex items-center justify-between p-5 lg:px-8 border-b border-gray-100 bg-white z-10 shrink-0">
           <div className="flex items-center gap-3">
-             <div className="p-2 rounded-xl bg-blue-50 text-blue-500">
-               <CloudSun className="w-6 h-6" />
+             <div className="p-2 rounded-xl bg-blue-50/50">
+               <GoogleDriveIcon className="w-8 h-8" />
              </div>
              <div>
                <h2 className="text-xl font-bold text-gray-800">Google Drive</h2>
@@ -156,8 +157,8 @@ export const DrivePickerModal: React.FC<DrivePickerModalProps> = ({
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row bg-gray-50/50">
            {!workspaceToken ? (
              <div className="flex flex-col items-center justify-center w-full h-full p-8 text-center bg-white">
-                <div className="w-20 h-20 rounded-full bg-blue-50 flex items-center justify-center mb-6 text-blue-500">
-                   <CloudSun className="w-10 h-10" />
+                <div className="w-20 h-20 rounded-full bg-blue-50/50 flex items-center justify-center mb-6">
+                   <GoogleDriveIcon className="w-12 h-12" />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-800 mb-3">Akses Penyimpanan Drive</h3>
                 <p className="text-gray-500 mb-8 max-w-md text-sm leading-relaxed">
