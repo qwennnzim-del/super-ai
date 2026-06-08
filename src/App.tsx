@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { Info, Shield, Layers, HelpCircle, ChevronRight, ArrowLeft, Sparkles, Mic, ChevronDown, Menu, Frame, SquareArrowUpRight, Bot, Check, Copy, MessageSquare, Trash2, LogOut, X, Search, Mail, Lock, Eye, Globe, Camera, Image as ImageIcon, FileText, Paperclip, Plus, Crown, ThumbsUp, Share2, Palette, BookOpen, MonitorPlay, Table, Briefcase, Download, Square, Loader2, Map as MapIcon, CloudSun, Calendar, Clock, SlidersHorizontal, LayoutTemplate } from "lucide-react";
+import { Info, Shield, Layers, HelpCircle, ChevronRight, ArrowLeft, Sparkles, Mic, ChevronDown, Menu, Frame, SquareArrowUpRight, Bot, Check, Copy, MessageSquare, Trash2, LogOut, X, Search, Mail, Lock, Eye, Globe, Camera, Image as ImageIcon, FileText, Paperclip, Plus, Crown, ThumbsUp, Share2, Palette, BookOpen, MonitorPlay, Table, Briefcase, Download, Square, Loader2, Map as MapIcon, CloudSun, Calendar, Clock, SlidersHorizontal, LayoutTemplate, User as UserIcon, Settings } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { auth, db, googleAuthProvider, handleFirestoreError, OperationType } from './firebase';
 import { onAuthStateChanged, signInWithPopup, signOut, User, GoogleAuthProvider } from 'firebase/auth';
@@ -2264,195 +2264,236 @@ export default function App() {
              >
                {/* Profile Tab */}
                <div className="w-1/2 h-full overflow-y-auto pb-20">
-                 <div className="max-w-xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-               <div className="flex flex-col items-center mb-10 mt-2">
-                 <div className={`relative group mb-5 rounded-full ${user.email === 'cipaonly08@gmail.com' ? 'p-1' : ''}`}>
-                   {user.email === 'cipaonly08@gmail.com' && (
-                     <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-500 via-purple-500 via-pink-500 to-orange-500 animate-[spin_3s_linear_infinite]" />
-                   )}
-                   <div className={`w-28 h-28 sm:w-36 sm:h-36 rounded-full overflow-hidden ${user.email === 'cipaonly08@gmail.com' ? 'border-[4px] border-white' : 'border-4 border-white shadow-md'} relative transition-transform group-hover:scale-[1.02] z-10 bg-white`}>
-                     {displayPhotoURL ? (
-                        <img src={displayPhotoURL} className="w-full h-full object-cover" />
+                 <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+                   
+                   {/* Profile Header Card */}
+                   <div className="bg-white border border-gray-100 rounded-3xl p-6 sm:p-8 shadow-sm mb-6 flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8">
+                     
+                     {/* Avatar */}
+                     <div className="relative group shrink-0">
+                       <div className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden ${user.email === 'cipaonly08@gmail.com' ? 'ring-4 ring-indigo-500/30' : 'ring-4 ring-gray-50'} relative transition-all duration-300 group-hover:scale-105 z-10 bg-white`}>
+                         {displayPhotoURL ? (
+                            <img src={displayPhotoURL} className="w-full h-full object-cover" />
+                         ) : (
+                            <Bot className="w-full h-full text-gray-400 p-6 bg-gray-50" />
+                         )}
+                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer backdrop-blur-[2px]">
+                            <Camera className="w-8 h-8 text-white" />
+                         </div>
+                       </div>
+                       <input type="file" accept="image/*" onChange={handleProfileUpload} className="absolute inset-0 z-20 w-full h-full opacity-0 cursor-pointer" />
+                     </div>
+
+                     {/* Info & Content */}
+                     <div className="flex flex-col items-center sm:items-start w-full text-center sm:text-left pt-2">
+                       {isEditingName ? (
+                         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3 w-full mb-3">
+                           <input
+                             type="text"
+                             value={editNameValue}
+                             onChange={(e) => setEditNameValue(e.target.value)}
+                             onKeyDown={(e) => {
+                               if (e.key === 'Enter') handleSaveName();
+                               if (e.key === 'Escape') setIsEditingName(false);
+                             }}
+                             autoFocus
+                             className="w-full max-w-[280px] px-4 py-2 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-900 bg-blue-50/30 text-center sm:text-left"
+                           />
+                           <div className="flex items-center gap-2">
+                             <button onClick={handleSaveName} className="text-sm bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 font-medium transition-colors">Simpan</button>
+                             <button onClick={() => setIsEditingName(false)} className="text-sm bg-gray-100 text-gray-600 px-4 py-2 rounded-xl hover:bg-gray-200 font-medium transition-colors">Batal</button>
+                           </div>
+                         </div>
+                       ) : (
+                         <div className="flex items-center gap-2 group/name cursor-pointer mb-1 relative" onClick={() => { setEditNameValue(displayDisplayName); setIsEditingName(true); }}>
+                           <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">{displayDisplayName}</h3>
+                           <div className="opacity-0 group-hover/name:opacity-100 transition-opacity p-1.5 text-blue-500 hover:text-blue-700 bg-blue-50/0 hover:bg-blue-50 rounded-lg">
+                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                           </div>
+                         </div>
+                       )}
+                       
+                       <p className="text-sm text-gray-500 font-medium mb-4">{t.dearUser}</p>
+                       
+                       {isEditingBio ? (
+                         <div className="flex flex-col items-center sm:items-start gap-3 w-full">
+                           <textarea
+                             value={editBioValue}
+                             onChange={(e) => setEditBioValue(e.target.value)}
+                             className="w-full max-w-[400px] px-4 py-3 border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-700 resize-none h-24 bg-blue-50/30 text-center sm:text-left"
+                             placeholder={language === 'en' ? 'Write a short bio...' : 'Tulis bio singkat...'}
+                             autoFocus
+                           />
+                           <div className="flex items-center gap-2">
+                             <button onClick={handleSaveBio} className="text-sm bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 font-medium transition-colors">{language === 'en' ? 'Save' : 'Simpan'}</button>
+                             <button onClick={() => setIsEditingBio(false)} className="text-sm bg-gray-100 text-gray-600 px-4 py-2 rounded-xl hover:bg-gray-200 font-medium transition-colors">{language === 'en' ? 'Cancel' : 'Batal'}</button>
+                           </div>
+                         </div>
+                       ) : (
+                         <div className="group/bio cursor-pointer w-full max-w-[400px] relative p-3 sm:-ml-3 rounded-xl hover:bg-gray-50 transition-colors" onClick={() => { setEditBioValue(userBio || ''); setIsEditingBio(true); }}>
+                           <p className={`text-sm leading-relaxed ${userBio ? 'text-gray-700' : 'text-gray-400 italic'}`}>
+                             {userBio || (language === 'en' ? 'Add a short bio to introduce yourself...' : 'Tambahkan bio singkat untuk memperkenalkan diri...')}
+                           </p>
+                           <div className="opacity-0 group-hover/bio:opacity-100 transition-opacity absolute top-3 right-3 p-1.5 text-blue-500 bg-blue-50 hover:bg-blue-100 rounded-lg">
+                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                           </div>
+                         </div>
+                       )}
+                     </div>
+                   </div>
+
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                     {/* Activity Stats */}
+                     <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+                       <div className="flex items-center gap-3 mb-6">
+                          <div className="p-2.5 bg-blue-50 rounded-xl">
+                             <MessageSquare className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <h4 className="text-sm font-bold text-gray-800">{language === 'en' ? 'Activity Overview' : 'Ringkasan Aktivitas'}</h4>
+                       </div>
+                       
+                       <div className="grid grid-cols-2 gap-4">
+                         <div className="bg-gray-50 rounded-2xl p-4 flex flex-col">
+                           <span className="text-[11px] text-gray-500 font-semibold uppercase tracking-wider mb-1 block">{language === 'en' ? 'Chats' : 'Obrolan'}</span>
+                           <span className="text-3xl flex-1 font-bold text-gray-900">{chats.length}</span>
+                         </div>
+                         <div className="bg-amber-50 rounded-2xl p-4 flex flex-col">
+                           <span className="text-[11px] text-amber-700/70 font-semibold uppercase tracking-wider mb-1 block">{language === 'en' ? 'Credits' : 'Kredit'}</span>
+                           <span className="text-3xl flex-1 font-bold text-amber-600">{userCredits}</span>
+                         </div>
+                       </div>
+                     </div>
+
+                     {/* Premium/Free Card */}
+                     {user.email === 'cipaonly08@gmail.com' ? (
+                       <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 rounded-3xl p-6 shadow-sm text-white relative overflow-hidden flex flex-col justify-between">
+                         <div className="absolute -top-10 -right-10 p-4 opacity-10 rotate-12 pointer-events-none">
+                           <Crown className="w-48 h-48" />
+                         </div>
+                         <div className="relative z-10 flex items-center justify-between mb-6">
+                           <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 rounded-full text-[11px] font-bold tracking-wide uppercase backdrop-blur-sm">
+                             <Crown className="w-3.5 h-3.5" /> {t.premiumAccess}
+                           </div>
+                         </div>
+                         
+                         <div className="relative z-10 flex flex-col gap-4">
+                            <div className="flex justify-between items-end border-b border-indigo-400/30 pb-4">
+                              <div>
+                                <div className="text-indigo-100 text-[11px] uppercase tracking-wider font-semibold mb-1 block">{t.currentCredit}</div>
+                                <div className="text-4xl font-bold tracking-tight">999</div>
+                              </div>
+                              <div className="text-indigo-200 text-xs font-medium text-right bg-white/10 px-3 py-1.5 rounded-lg backdrop-blur-sm">
+                                {t.freeCredit}: 999
+                              </div>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <div className="text-indigo-100 text-[11px] uppercase tracking-wider font-semibold mb-1 block">{t.dailyCredit}</div>
+                                <div className="text-2xl font-bold tracking-tight">300</div>
+                              </div>
+                              <div className="text-indigo-200/80 text-[11px] text-right max-w-[120px] leading-tight">
+                                {t.resetCreditInfo}
+                              </div>
+                            </div>
+                         </div>
+                       </div>
                      ) : (
-                        <Bot className="w-full h-full text-gray-400 p-8 bg-white" />
+                       <div className="bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 rounded-3xl p-6 shadow-sm text-white relative overflow-hidden flex flex-col justify-between">
+                         <div className="absolute -top-10 -right-10 p-4 opacity-5 rotate-12 pointer-events-none">
+                           <Bot className="w-48 h-48" />
+                         </div>
+                         <div className="relative z-10 flex items-center justify-between mb-6">
+                           <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 rounded-full text-[11px] font-bold tracking-wide uppercase backdrop-blur-sm">
+                             <Bot className="w-3.5 h-3.5" /> {t.freeAccess}
+                           </div>
+                         </div>
+                         
+                         <div className="relative z-10 flex flex-col gap-4">
+                            <div className="flex justify-between items-end border-b border-slate-600/50 pb-4">
+                              <div>
+                                <div className="text-slate-300 text-[11px] uppercase tracking-wider font-semibold mb-1 block">{t.currentCredit}</div>
+                                <div className="text-4xl font-bold tracking-tight">{userCredits}</div>
+                              </div>
+                              <div className="text-slate-400 text-xs font-medium text-right bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
+                                {t.freeCredit}: {userFreeCredits}
+                              </div>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <div className="text-slate-300 text-[11px] uppercase tracking-wider font-semibold mb-1 block">{t.dailyCredit}</div>
+                                <div className="text-2xl font-bold tracking-tight text-slate-500">0</div>
+                              </div>
+                              <div className="text-slate-400 text-[11px] text-right max-w-[140px] leading-tight">
+                                {t.upgradePremiumInfo}
+                              </div>
+                            </div>
+                         </div>
+                       </div>
                      )}
-                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                        <Camera className="w-8 h-8 text-white" />
-                     </div>
                    </div>
-                   <input type="file" accept="image/*" onChange={handleProfileUpload} className="absolute inset-0 z-20 w-full h-full opacity-0 cursor-pointer" />
-                 </div>
-                 {isEditingName ? (
-                   <div className="flex flex-col items-center gap-2 w-full mt-2">
-                     <input
-                       type="text"
-                       value={editNameValue}
-                       onChange={(e) => setEditNameValue(e.target.value)}
-                       onKeyDown={(e) => {
-                         if (e.key === 'Enter') handleSaveName();
-                         if (e.key === 'Escape') setIsEditingName(false);
-                       }}
-                       autoFocus
-                       className="text-center px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-900 w-full max-w-[200px]"
-                     />
-                     <div className="flex items-center gap-2">
-                       <button onClick={handleSaveName} className="text-sm bg-blue-600 text-white px-4 py-1.5 rounded-lg hover:bg-blue-700 font-medium">Simpan</button>
-                       <button onClick={() => setIsEditingName(false)} className="text-sm bg-gray-200 text-gray-700 px-4 py-1.5 rounded-lg hover:bg-gray-300 font-medium">Batal</button>
-                     </div>
-                   </div>
-                 ) : (
-                   <div className="flex items-center justify-center group/name cursor-pointer mt-1 relative" onClick={() => { setEditNameValue(displayDisplayName); setIsEditingName(true); }}>
-                     <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">{displayDisplayName}</h3>
-                     <div className="opacity-0 group-hover/name:opacity-100 transition-opacity p-1.5 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-200 absolute -right-10">
-                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                     </div>
-                   </div>
-                 )}
-                 <p className="text-sm sm:text-base text-gray-500 mt-1.5 font-medium tracking-wide">{t.dearUser}</p>
-                 
-                 {isEditingBio ? (
-                   <div className="flex flex-col items-center gap-2 w-full mt-4">
-                     <textarea
-                       value={editBioValue}
-                       onChange={(e) => setEditBioValue(e.target.value)}
-                       className="w-full max-w-[300px] text-center px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-700 resize-none h-20"
-                       placeholder={language === 'en' ? 'Write a short bio...' : 'Tulis bio singkat...'}
-                       autoFocus
-                     />
-                     <div className="flex items-center gap-2">
-                       <button onClick={handleSaveBio} className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 font-medium">{language === 'en' ? 'Save' : 'Simpan'}</button>
-                       <button onClick={() => setIsEditingBio(false)} className="text-xs bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-300 font-medium">{language === 'en' ? 'Cancel' : 'Batal'}</button>
-                     </div>
-                   </div>
-                 ) : (
-                   <div className="flex items-center justify-center group/bio cursor-pointer mt-3 relative max-w-[300px] text-center" onClick={() => { setEditBioValue(userBio || ''); setIsEditingBio(true); }}>
-                     <p className={`text-sm ${userBio ? 'text-gray-700' : 'text-gray-400 italic'}`}>
-                       {userBio || (language === 'en' ? 'Add a short bio...' : 'Tambahkan bio singkat...')}
-                     </p>
-                     <div className="opacity-0 group-hover/bio:opacity-100 transition-opacity p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-200 absolute -right-8 top-1/2 -translate-y-1/2">
-                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                     </div>
-                   </div>
-                 )}
-               </div>
 
-               {/* Activity Stats */}
-               <div className="grid grid-cols-2 gap-4 mb-6 sm:mb-8">
-                 <div className="bg-white border border-gray-100/80 rounded-[2rem] p-5 shadow-sm flex flex-col items-center justify-center text-center">
-                   <MessageSquare className="w-6 h-6 text-blue-500 mb-2" />
-                   <span className="text-2xl font-bold text-gray-800">{chats.length}</span>
-                   <span className="text-xs text-gray-500 font-medium uppercase tracking-wider mt-1">{language === 'en' ? 'Total Chats' : 'Total Obrolan'}</span>
-                 </div>
-                 <div className="bg-white border border-gray-100/80 rounded-[2rem] p-5 shadow-sm flex flex-col items-center justify-center text-center">
-                   <Sparkles className="w-6 h-6 text-amber-500 mb-2" />
-                   <span className="text-2xl font-bold text-gray-800">{userCredits}</span>
-                   <span className="text-xs text-gray-500 font-medium uppercase tracking-wider mt-1">{language === 'en' ? 'Credits Left' : 'Kredit Tersisa'}</span>
-                 </div>
-               </div>
+                   {/* Settings & Info Grid */}
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-               {/* Premium/Free Card */}
-               {user.email === 'cipaonly08@gmail.com' ? (
-                 <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 rounded-[2rem] p-6 sm:p-8 shadow-xl mb-6 sm:mb-8 text-white relative overflow-hidden">
-                   <div className="absolute -top-6 -right-6 p-4 opacity-10 rotate-12">
-                     <Crown className="w-48 h-48" />
-                   </div>
-                   <div className="relative z-10">
-                     <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 hover:bg-white/30 transition-colors rounded-full text-xs font-semibold tracking-wide uppercase mb-6 sm:mb-8 backdrop-blur-sm cursor-default">
-                       <Crown className="w-3.5 h-3.5" /> {t.premiumAccess}
-                     </div>
-                     
-                     <div className="grid grid-cols-2 gap-6 sm:gap-8">
+                     {/* Persona Details */}
+                     <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
                        <div>
-                         <div className="text-indigo-100 text-sm font-medium mb-1">{t.currentCredit}</div>
-                         <div className="text-4xl sm:text-5xl font-bold tracking-tight">999</div>
-                         <div className="text-indigo-200/80 text-[11px] sm:text-xs mt-1.5 uppercase tracking-wider font-semibold">{t.freeCredit}: 999</div>
-                       </div>
-                       <div>
-                         <div className="text-indigo-100 text-sm font-medium mb-1">{t.dailyCredit}</div>
-                         <div className="text-4xl sm:text-5xl font-bold tracking-tight">300</div>
-                         <div className="text-indigo-200/80 text-[11px] sm:text-xs mt-1.5 leading-snug pr-2">{t.resetCreditInfo}</div>
+                         <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                           <UserIcon className="w-4 h-4" /> {t.personaDetails}
+                         </h4>
+                         <div className="space-y-4">
+                           <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100/50 transition-colors hover:bg-gray-100/50">
+                             <label className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-1 block">Email</label>
+                             <div className="text-gray-800 font-medium text-sm mt-1">{user.email}</div>
+                           </div>
+                           <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100/50 transition-colors hover:bg-gray-100/50 group/uid flex flex-col">
+                             <div className="flex items-center justify-between">
+                               <label className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-1 block">User ID</label>
+                               <button onClick={() => {
+                                 navigator.clipboard.writeText(user.uid);
+                               }} className="p-1.5 hover:bg-white rounded-lg transition-all shadow-sm opacity-0 group-hover/uid:opacity-100 text-gray-500 border border-gray-200">
+                                 <Copy className="w-3.5 h-3.5" />
+                               </button>
+                             </div>
+                             <span className="text-gray-600 font-mono text-[13px] truncate mt-1">{user.uid}</span>
+                           </div>
+                         </div>
                        </div>
                      </div>
-                   </div>
-                 </div>
-               ) : (
-                 <div className="bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 rounded-[2rem] p-6 sm:p-8 shadow-xl mb-6 sm:mb-8 text-white relative overflow-hidden">
-                   <div className="absolute -top-6 -right-6 p-4 opacity-5 rotate-12">
-                     <Bot className="w-48 h-48" />
-                   </div>
-                   <div className="relative z-10">
-                     <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 hover:bg-white/20 transition-colors rounded-full text-xs font-semibold tracking-wide uppercase mb-6 sm:mb-8 backdrop-blur-sm cursor-default">
-                       <Bot className="w-3.5 h-3.5" /> {t.freeAccess}
-                     </div>
-                     
-                     <div className="grid grid-cols-2 gap-6 sm:gap-8">
+
+                     {/* Manage Account */}
+                     <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
                        <div>
-                         <div className="text-slate-300 text-sm font-medium mb-1">{t.currentCredit}</div>
-                         <div className="text-4xl sm:text-5xl font-bold tracking-tight">{userCredits}</div>
-                         <div className="text-slate-400 text-[11px] sm:text-xs mt-1.5 uppercase tracking-wider font-semibold opacity-70">{t.freeCredit}: {userFreeCredits}</div>
+                         <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                           <Settings className="w-4 h-4" /> {t.manageAccount}
+                         </h4>
+                         <div className="space-y-3">
+                           <button onClick={() => { signOut(auth); setShowProfile(false); }} className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-gray-100 hover:bg-orange-50 hover:border-orange-100 transition-all group text-left">
+                             <div className="p-2.5 bg-orange-100/80 text-orange-600 rounded-xl group-hover:scale-105 transition-transform flex-shrink-0">
+                               <LogOut className="w-4 h-4" />
+                             </div>
+                             <div>
+                               <div className="font-semibold text-gray-900 group-hover:text-orange-700 transition-colors text-sm">{t.logoutTitle}</div>
+                               <div className="text-[11px] text-gray-500 line-clamp-1 mt-0.5">{t.logoutDesc}</div>
+                             </div>
+                           </button>
+
+                           <button className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-gray-100 hover:bg-red-50 hover:border-red-100 transition-all group text-left">
+                             <div className="p-2.5 bg-red-100/80 text-red-600 rounded-xl group-hover:scale-105 transition-transform flex-shrink-0">
+                               <Trash2 className="w-4 h-4" />
+                             </div>
+                             <div>
+                               <div className="font-semibold text-gray-900 group-hover:text-red-700 transition-colors text-sm">{t.deleteAccountTitle}</div>
+                               <div className="text-[11px] text-gray-500 line-clamp-1 mt-0.5">{t.deleteAccountDesc}</div>
+                             </div>
+                           </button>
+                         </div>
                        </div>
-                       <div>
-                         <div className="text-slate-300 text-sm font-medium mb-1">{t.dailyCredit}</div>
-                         <div className="text-4xl sm:text-5xl font-bold tracking-tight">0</div>
-                         <div className="text-slate-400 text-[11px] sm:text-xs mt-1.5 leading-snug pr-2 opacity-70">{t.upgradePremiumInfo}</div>
-                       </div>
                      </div>
-                   </div>
-                 </div>
-               )}
-
-               {/* Persona Details */}
-               <div className="bg-white border border-gray-100/80 rounded-[2rem] p-6 sm:p-8 shadow-sm mb-6 sm:mb-8">
-                 <h4 className="text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5">{t.personaDetails}</h4>
-                 <div className="space-y-4 sm:space-y-5">
-                   <div>
-                     <label className="text-xs text-gray-500 font-medium ml-1">Email</label>
-                     <div className="mt-1.5 px-4 py-3.5 bg-gray-50/80 rounded-2xl text-gray-800 font-medium text-sm border border-gray-100/50">
-                       {user.email}
-                     </div>
-                   </div>
-                   <div>
-                     <label className="text-xs text-gray-500 font-medium ml-1">User ID</label>
-                     <div className="mt-1.5 flex items-center justify-between px-4 py-3 bg-gray-50/80 rounded-2xl border border-gray-100/50 group">
-                       <span className="text-gray-700 font-mono text-sm truncate mr-4">{user.uid}</span>
-                       <button onClick={() => {
-                         navigator.clipboard.writeText(user.uid);
-                       }} className="p-2 hover:bg-white rounded-xl transition-all shadow-sm opacity-60 hover:opacity-100 text-gray-500">
-                         <Copy className="w-4 h-4" />
-                       </button>
-                     </div>
-                   </div>
-                 </div>
-               </div>
-
-               {/* Manage Account */}
-               <div className="bg-white border border-gray-100/80 rounded-[2rem] p-6 sm:p-8 shadow-sm">
-                 <h4 className="text-xs sm:text-sm font-bold text-gray-400 uppercase tracking-[0.2em] mb-5">{t.manageAccount}</h4>
-                 <div className="space-y-3 sm:space-y-4">
-                   <button onClick={() => { signOut(auth); setShowProfile(false); }} className="w-full flex items-center gap-4 p-4 rounded-2xl border border-gray-100 hover:bg-orange-50 hover:border-orange-100 active:scale-[0.98] transition-all group text-left">
-                     <div className="p-3 bg-orange-100/80 text-orange-600 rounded-xl group-hover:scale-110 transition-transform">
-                       <LogOut className="w-5 h-5" />
-                     </div>
-                     <div>
-                       <div className="font-semibold text-gray-900 group-hover:text-orange-700 transition-colors text-sm sm:text-base">{t.logoutTitle}</div>
-                       <div className="text-xs text-gray-500 mt-0.5">{t.logoutDesc}</div>
-                     </div>
-                   </button>
-
-                   <button className="w-full flex items-center gap-4 p-4 rounded-2xl border border-gray-100 hover:bg-red-50 hover:border-red-100 active:scale-[0.98] transition-all group text-left">
-                     <div className="p-3 bg-red-100/80 text-red-600 rounded-xl group-hover:scale-110 transition-transform">
-                       <Trash2 className="w-5 h-5" />
-                     </div>
-                     <div>
-                       <div className="font-semibold text-gray-900 group-hover:text-red-700 transition-colors text-sm sm:text-base">{t.deleteAccountTitle}</div>
-                       <div className="text-xs text-gray-500 mt-0.5 leading-relaxed">{t.deleteAccountDesc}</div>
-                     </div>
-                   </button>
-                 </div>
-               </div>
 
               </div>
             </div>
+          </div>
 
               {/* Settings Tab */}
               <div className="w-1/2 h-full overflow-y-auto pb-20 relative">
@@ -2970,7 +3011,7 @@ export default function App() {
         workspaceToken={workspaceToken}
         onConnectWorkspace={() => {
            setIsDrivePickerOpen(false);
-           setSettingsOpen(true);
+           setShowProfile(true);
         }}
         onSelectFile={(name, dataUrl, mimeType, fileData) => {
            setCurrentAttachments(prev => [...prev, { file: fileData, name, dataUrl, mimeType }]);

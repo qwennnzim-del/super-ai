@@ -188,7 +188,7 @@ export const DrivePickerModal: React.FC<DrivePickerModalProps> = ({
                        onClick={() => setCategory(c.id as any)}
                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors text-sm font-medium ${category === c.id ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
                      >
-                       {React.cloneElement(c.icon as React.ReactElement, { className: `w-5 h-5 ${category === c.id ? 'text-blue-500' : 'text-gray-400'}` })}
+                       {React.cloneElement(c.icon as React.ReactElement<any>, { className: `w-5 h-5 ${category === c.id ? 'text-blue-500' : 'text-gray-400'}` })}
                        {c.label}
                      </button>
                    ))}
