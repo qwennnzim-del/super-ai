@@ -11,7 +11,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { InteractiveTable } from './InteractiveTable';
 import { DrivePickerModal } from './DrivePickerModal';
-import { GoogleDriveIcon, GoogleSheetsIcon } from './GoogleIcons';
+import { GoogleDriveIcon, GoogleSheetsIcon, GmailIcon } from './GoogleIcons';
 
 const TextAlignStartIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M21 5H3"/><path d="M15 12H3"/><path d="M17 19H3"/></svg>
@@ -410,9 +410,9 @@ export default function App() {
   const [loadingText, setLoadingText] = useState("Berfikir...");
   const [loadingIconType, setLoadingIconType] = useState<"none" | "map" | "calendar" | "weather" | "time" | "google">("none");
   const [pendingMediaTask, setPendingMediaTask] = useState<'generate_image' | 'search_image' | null>(null);
-  const [appMode, setAppMode] = useState<"chat" | "generate_image" | "search_image" | "drive" | "sheets">(() => {
+  const [appMode, setAppMode] = useState<"chat" | "generate_image" | "search_image" | "drive" | "sheets" | "gmail" | "learn" | "slide" | "cv" | "sheet">(() => {
     const saved = localStorage.getItem("app_mode") as any;
-    if (["chat", "generate_image", "search_image", "drive", "sheets"].includes(saved)) return saved;
+    if (["chat", "generate_image", "search_image", "drive", "sheets", "gmail", "learn", "slide", "cv", "sheet"].includes(saved)) return saved;
     return "chat";
   });
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -1126,6 +1126,8 @@ export default function App() {
 
       if (appMode === 'sheets') {
          sysInstruction = locationContext + "Anda adalah ahlinya spreadsheet dan Google Sheets. Anda akan membantu pengguna meracik rumus (formulas), memproses data, atau membuat ringkasan langkah pengaturan Sheets.";
+      } else if (appMode === 'gmail') {
+         sysInstruction = locationContext + "Anda adalah asisten email ahli. Anda akan membantu pengguna menulis draft email yang profesional, ramah, dan ringkas, meringkas konteks komunikasi, serta memberitahu panduan menggunakan fitur email.";
       } else if (aiModel === 'gemini-2.5-pro') {
          sysInstruction += " Kamu harus MENGKOMUNIKASIKAN proses berpikirmu sebelum menjawab pertanyaan. Untuk melakukan hal ini, selalu awali responmu dengan TAG <thinking> dan tutup dengan </thinking> dan isi didalamnya dengan analisis, penalaran, atau rencana kamu. Pastikan untuk MENGGUNAKAN format markdown di dalam tag thinking.";
       }
@@ -2149,6 +2151,12 @@ export default function App() {
                            </div>
                            <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Google Sheets</span>
                          </button>
+                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'gmail' ? 'chat' : 'gmail'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'gmail' ? 'bg-red-100/50' : 'hover:bg-gray-50'}`}>
+                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'gmail' ? 'bg-red-50 text-white' : 'bg-red-50 text-red-500 group-hover:bg-red-100'}`}>
+                              <GmailIcon className="w-6 h-6" />
+                           </div>
+                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Gmail</span>
+                         </button>
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -2267,10 +2275,28 @@ export default function App() {
                  <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
                    
                    {/* Profile Header Card */}
-                   <div className="bg-white border border-gray-100 rounded-3xl p-6 sm:p-8 shadow-sm mb-6 flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8">
+                   <div className="bg-white border border-gray-100 rounded-3xl p-6 sm:p-8 shadow-sm mb-6 flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8 relative overflow-hidden">
+                     {/* Floating Pink Gradient Animation */}
+                     <div className="absolute inset-0 z-0 pointer-events-none opacity-40">
+                       <motion.div
+                         animate={{ x: [0, 40, -20, 0], y: [0, -40, 20, 0], scale: [1, 1.2, 0.9, 1] }}
+                         transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+                         className="absolute -top-10 -left-10 w-48 h-48 sm:w-64 sm:h-64 bg-pink-300 rounded-full mix-blend-multiply blur-3xl opacity-50"
+                       />
+                       <motion.div
+                         animate={{ x: [0, -30, 40, 0], y: [0, 30, -30, 0], scale: [1, 1.4, 0.8, 1] }}
+                         transition={{ duration: 15, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+                         className="absolute top-1/4 right-0 w-56 h-56 sm:w-72 sm:h-72 bg-gradient-to-r from-pink-200 to-rose-300 rounded-full mix-blend-multiply blur-3xl opacity-50"
+                       />
+                       <motion.div
+                         animate={{ x: [0, 30, -50, 0], y: [0, 50, -20, 0], scale: [1, 1.1, 1.3, 1] }}
+                         transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 4 }}
+                         className="absolute -bottom-20 left-1/3 w-64 h-64 sm:w-80 sm:h-80 bg-fuchsia-300 rounded-full mix-blend-multiply blur-3xl opacity-40"
+                       />
+                     </div>
                      
                      {/* Avatar */}
-                     <div className="relative group shrink-0">
+                     <div className="relative group shrink-0 z-10">
                        <div className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden ${user.email === 'cipaonly08@gmail.com' ? 'ring-4 ring-indigo-500/30' : 'ring-4 ring-gray-50'} relative transition-all duration-300 group-hover:scale-105 z-10 bg-white`}>
                          {displayPhotoURL ? (
                             <img src={displayPhotoURL} className="w-full h-full object-cover" />
@@ -2285,7 +2311,7 @@ export default function App() {
                      </div>
 
                      {/* Info & Content */}
-                     <div className="flex flex-col items-center sm:items-start w-full text-center sm:text-left pt-2">
+                     <div className="flex flex-col items-center sm:items-start w-full text-center sm:text-left pt-2 z-10">
                        {isEditingName ? (
                          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3 w-full mb-3">
                            <input
@@ -2305,10 +2331,12 @@ export default function App() {
                            </div>
                          </div>
                        ) : (
-                         <div className="flex items-center gap-2 group/name cursor-pointer mb-1 relative" onClick={() => { setEditNameValue(displayDisplayName); setIsEditingName(true); }}>
-                           <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">{displayDisplayName}</h3>
-                           <div className="opacity-0 group-hover/name:opacity-100 transition-opacity p-1.5 text-blue-500 hover:text-blue-700 bg-blue-50/0 hover:bg-blue-50 rounded-lg">
-                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                         <div className="flex items-center justify-center sm:justify-start group/name cursor-pointer mb-1 w-full sm:w-auto relative" onClick={() => { setEditNameValue(displayDisplayName); setIsEditingName(true); }}>
+                           <div className="relative inline-flex items-center justify-center">
+                             <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">{displayDisplayName}</h3>
+                             <div className="opacity-0 group-hover/name:opacity-100 transition-opacity p-1.5 text-blue-500 hover:text-blue-700 bg-blue-50/0 hover:bg-blue-50 rounded-lg absolute -right-10 top-1/2 -translate-y-1/2 sm:static sm:translate-y-0 text-center flex items-center justify-center">
+                               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                             </div>
                            </div>
                          </div>
                        )}
@@ -2804,6 +2832,7 @@ export default function App() {
                                    { id: 'learn', label: language === 'en' ? 'Learn' : 'Belajar' },
                                    { id: 'slide', label: 'Slide' },
                                    { id: 'sheet', label: 'Sheet' },
+                                   { id: 'gmail', label: 'Gmail' },
                                    { id: 'cv', label: 'CV' }
                                  ].map((mode) => (
                                    <button 
