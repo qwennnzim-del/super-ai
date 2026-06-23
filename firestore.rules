@@ -36,12 +36,14 @@ service cloud.firestore {
       allow read: if isSignedIn() && userId == request.auth.uid;
       allow create, update: if isSignedIn() 
         && userId == request.auth.uid
-        && incoming().keys().hasAny(['photoURL', 'displayName', 'credits', 'freeCredits', 'lastResetDate'])
+        && incoming().keys().hasAny(['photoURL', 'displayName', 'credits', 'freeCredits', 'lastResetDate', 'workspaceToken', 'bio'])
         && (!("photoURL" in incoming()) || incoming().photoURL is string || incoming().photoURL == null)
         && (!("displayName" in incoming()) || incoming().displayName is string || incoming().displayName == null)
         && (!("credits" in incoming()) || incoming().credits is number)
         && (!("freeCredits" in incoming()) || incoming().freeCredits is number)
-        && (!("lastResetDate" in incoming()) || incoming().lastResetDate is string);
+        && (!("lastResetDate" in incoming()) || incoming().lastResetDate is string)
+        && (!("workspaceToken" in incoming()) || incoming().workspaceToken is string || incoming().workspaceToken == null)
+        && (!("bio" in incoming()) || incoming().bio is string || incoming().bio == null);
     }
 
     match /chats/{chatId} {

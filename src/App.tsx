@@ -420,8 +420,8 @@ export default function App() {
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<any>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const [aiModel, setAiModel] = useState<"gemini-2.5-flash" | "gemini-2.5-pro">(() => {
-    return (localStorage.getItem("app_ai_model") as "gemini-2.5-flash" | "gemini-2.5-pro") || "gemini-2.5-flash";
+  const [aiModel, setAiModel] = useState<"gemini-3.5-flash" | "gemini-3.1-pro-preview">(() => {
+    return (localStorage.getItem("app_ai_model") as "gemini-3.5-flash" | "gemini-3.1-pro-preview") || "gemini-3.5-flash";
   });
   const [customInstructions, setCustomInstructions] = useState<string>(() => {
     return localStorage.getItem("app_custom_instructions") || "";
@@ -869,11 +869,11 @@ export default function App() {
     let cost = 0;
     if (!isDeveloper) {
       if (appMode !== 'chat') cost += 2; // Feature usages cost
-      if (aiModel === "gemini-2.5-pro") cost += 5; // Pro model cost
+      if (aiModel === "gemini-3.1-pro-preview") cost += 5; // Pro model cost
       
       const totalCredits = userCredits + userFreeCredits;
       if (totalCredits < cost) {
-        alert("Poin Anda tidak mencukupi.\n\nJika menggunakan model Pro, silakan ganti ke model SuperAI-V5. Jika Anda menggunakan fitur khusus (Slide, CV, dll), fitur tersebut membutuhkan Poin dan sudah habis.");
+        alert("Poin Anda tidak mencukupi.\n\nJika menggunakan model Pro, silakan ganti ke model Gemini Pro. Jika Anda menggunakan fitur khusus (Slide, CV, dll), fitur tersebut membutuhkan Poin dan sudah habis.");
         return;
       }
     }
@@ -973,7 +973,7 @@ export default function App() {
           setLoadingText("Berfikir...");
           setTimeout(() => setLoadingText("Menghubungkan ke Google..."), 1000);
           
-          toolsConfig = [{ googleSearch: {} }];
+          // toolsConfig = [{ googleSearch: {} }]; // Disabled to avoid 403 PERMISSION_DENIED on standard API Keys
           if (isMapRequest) {
               setLoadingIconType("map");
               setTimeout(() => setLoadingText("Menghubungkan ke Google Maps..."), 2500);
@@ -1024,7 +1024,7 @@ export default function App() {
            
            // Ask Gemini to enhance the prompt
            const response = await ai.models.generateContent({
-             model: 'gemini-2.5-flash',
+             model: 'gemini-3.5-flash',
              contents: [
                 { role: 'user', parts: [{ text: `Create a highly detailed, descriptive, and conceptual english prompt for an image generation AI based on this user request: "${newMessageText}". Just output the prompt directly without any conversational filler or quotes.` }] }
              ]
@@ -1074,7 +1074,7 @@ export default function App() {
               });
            } else {
               const response = await ai.models.generateContent({
-                 model: 'gemini-2.5-flash',
+                 model: 'gemini-3.5-flash',
                  contents: [{ role: 'user', parts: [{ text: `Extract the main visual search keyword from this request: "${newMessageText}". Output only 1-3 english words best for a Google Images search engine. Output only the words.` }] }]
               });
               const keyword = response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "image";
@@ -1128,7 +1128,7 @@ export default function App() {
          sysInstruction = locationContext + "Anda adalah ahlinya spreadsheet dan Google Sheets. Anda akan membantu pengguna meracik rumus (formulas), memproses data, atau membuat ringkasan langkah pengaturan Sheets.";
       } else if (appMode === 'gmail') {
          sysInstruction = locationContext + "Anda adalah asisten email ahli. Anda akan membantu pengguna menulis draft email yang profesional, ramah, dan ringkas, meringkas konteks komunikasi, serta memberitahu panduan menggunakan fitur email.";
-      } else if (aiModel === 'gemini-2.5-pro') {
+      } else if (aiModel === 'gemini-3.1-pro-preview') {
          sysInstruction += " Kamu harus MENGKOMUNIKASIKAN proses berpikirmu sebelum menjawab pertanyaan. Untuk melakukan hal ini, selalu awali responmu dengan TAG <thinking> dan tutup dengan </thinking> dan isi didalamnya dengan analisis, penalaran, atau rencana kamu. Pastikan untuk MENGGUNAKAN format markdown di dalam tag thinking.";
       }
 
@@ -2170,7 +2170,7 @@ export default function App() {
                   onClick={() => setModelMenuOpen(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-gray-100 transition-colors text-gray-700 text-sm font-medium"
                 >
-                  {aiModel === "gemini-2.5-flash" ? t.fast : t.pro}
+                  {aiModel === "gemini-3.5-flash" ? t.fast : t.pro}
                   <ChevronDown className="w-4 h-4 text-gray-500" />
                 </motion.button>
                 <div className="w-px h-5 bg-gray-200 mx-1 hidden sm:block" />
@@ -2331,12 +2331,10 @@ export default function App() {
                            </div>
                          </div>
                        ) : (
-                         <div className="flex items-center justify-center sm:justify-start group/name cursor-pointer mb-1 w-full sm:w-auto relative" onClick={() => { setEditNameValue(displayDisplayName); setIsEditingName(true); }}>
-                           <div className="relative inline-flex items-center justify-center">
-                             <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">{displayDisplayName}</h3>
-                             <div className="opacity-0 group-hover/name:opacity-100 transition-opacity p-1.5 text-blue-500 hover:text-blue-700 bg-blue-50/0 hover:bg-blue-50 rounded-lg absolute -right-10 top-1/2 -translate-y-1/2 sm:static sm:translate-y-0 text-center flex items-center justify-center">
-                               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                             </div>
+                         <div className="flex items-center gap-2 group/name cursor-pointer mb-1 relative" onClick={() => { setEditNameValue(displayDisplayName); setIsEditingName(true); }}>
+                           <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">{displayDisplayName}</h3>
+                           <div className="opacity-0 group-hover/name:opacity-100 transition-opacity p-1.5 text-blue-500 hover:text-blue-700 bg-blue-50/0 hover:bg-blue-50 rounded-lg">
+                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                            </div>
                          </div>
                        )}
@@ -2806,16 +2804,16 @@ export default function App() {
                                </div>
                                <div className="flex bg-gray-100 p-1 rounded-xl text-sm font-medium">
                                  <button 
-                                   onClick={() => setAiModel('gemini-2.5-flash')}
-                                   className={`flex-1 py-1.5 px-3 rounded-lg transition-all ${aiModel === 'gemini-2.5-flash' ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                                   onClick={() => setAiModel('gemini-3.5-flash')}
+                                   className={`flex-1 py-1.5 px-3 rounded-lg transition-all ${aiModel === 'gemini-3.5-flash' ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
                                  >
-                                   SuperAI-Fast
+                                   Gemini Flash
                                  </button>
                                  <button 
-                                   onClick={() => setAiModel('gemini-2.5-pro')}
-                                   className={`flex-1 py-1.5 px-3 rounded-lg transition-all ${aiModel === 'gemini-2.5-pro' ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
+                                   onClick={() => setAiModel('gemini-3.1-pro-preview')}
+                                   className={`flex-1 py-1.5 px-3 rounded-lg transition-all ${aiModel === 'gemini-3.1-pro-preview' ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'}`}
                                  >
-                                   SuperAI-V5
+                                   Gemini Pro
                                  </button>
                                </div>
                              </div>
@@ -2912,22 +2910,22 @@ export default function App() {
              className="fixed bottom-0 inset-x-0 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:bottom-8 w-full sm:w-[400px] bg-white rounded-t-[2rem] sm:rounded-[2rem] shadow-xl z-[101] overflow-hidden flex flex-col"
            >
              <div className="flex items-center justify-between p-5 border-b border-gray-100 shrink-0">
-               <h3 className="font-semibold px-2 text-gray-800">Model SuperAI-V5</h3>
+               <h3 className="font-semibold px-2 text-gray-800">Model Gemini Pro</h3>
                <button onClick={() => setModelMenuOpen(false)} className="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
                  <X size={20} />
                </button>
              </div>
              <div className="p-3 space-y-2 mb-2">
                 <button 
-                  onClick={() => { setAiModel("gemini-2.5-flash"); setModelMenuOpen(false); }}
-                  className={`w-full text-left p-4 rounded-2xl transition-all border ${aiModel === "gemini-2.5-flash" ? "bg-blue-50/50 border-blue-200" : "bg-white border-transparent hover:bg-gray-50"} relative`}
+                  onClick={() => { setAiModel("gemini-3.5-flash"); setModelMenuOpen(false); }}
+                  className={`w-full text-left p-4 rounded-2xl transition-all border ${aiModel === "gemini-3.5-flash" ? "bg-blue-50/50 border-blue-200" : "bg-white border-transparent hover:bg-gray-50"} relative`}
                 >
                    <div className="flex items-center gap-4">
-                     <div className={`p-2.5 rounded-full ${aiModel === "gemini-2.5-flash" ? "bg-blue-100/50 text-blue-600" : "bg-gray-100 text-gray-600"}`}>
+                     <div className={`p-2.5 rounded-full ${aiModel === "gemini-3.5-flash" ? "bg-blue-100/50 text-blue-600" : "bg-gray-100 text-gray-600"}`}>
                         <Sparkles size={20} />
                      </div>
                      <div className="flex-1">
-                       <div className={`font-semibold text-[15px] flex items-center gap-2 ${aiModel === "gemini-2.5-flash" ? "text-blue-700" : "text-gray-800"}`}>
+                       <div className={`font-semibold text-[15px] flex items-center gap-2 ${aiModel === "gemini-3.5-flash" ? "text-blue-700" : "text-gray-800"}`}>
                          {t.fast}
                        </div>
                        <div className="text-[13px] text-gray-500 mt-0.5 leading-relaxed">{t.modelStandardDesc}</div>
@@ -2935,15 +2933,15 @@ export default function App() {
                    </div>
                 </button>
                 <button 
-                  onClick={() => { setAiModel("gemini-2.5-pro"); setModelMenuOpen(false); }}
-                  className={`w-full text-left p-4 rounded-2xl transition-all border ${aiModel === "gemini-2.5-pro" ? "bg-blue-50/50 border-blue-200" : "bg-white border-transparent hover:bg-gray-50"} relative`}
+                  onClick={() => { setAiModel("gemini-3.1-pro-preview"); setModelMenuOpen(false); }}
+                  className={`w-full text-left p-4 rounded-2xl transition-all border ${aiModel === "gemini-3.1-pro-preview" ? "bg-blue-50/50 border-blue-200" : "bg-white border-transparent hover:bg-gray-50"} relative`}
                 >
                    <div className="flex items-center gap-4">
-                     <div className={`p-2.5 rounded-full ${aiModel === "gemini-2.5-pro" ? "bg-blue-100/50 text-blue-600" : "bg-gray-100 text-gray-600"}`}>
+                     <div className={`p-2.5 rounded-full ${aiModel === "gemini-3.1-pro-preview" ? "bg-blue-100/50 text-blue-600" : "bg-gray-100 text-gray-600"}`}>
                         <Bot size={20} />
                      </div>
                      <div className="flex-1">
-                       <div className={`font-semibold text-[15px] flex items-center gap-2 ${aiModel === "gemini-2.5-pro" ? "text-blue-700" : "text-gray-800"}`}>
+                       <div className={`font-semibold text-[15px] flex items-center gap-2 ${aiModel === "gemini-3.1-pro-preview" ? "text-blue-700" : "text-gray-800"}`}>
                          {t.pro} <Sparkles className="w-3.5 h-3.5 text-orange-500 fill-orange-500" />
                        </div>
                        <div className="text-[13px] text-gray-500 mt-0.5 leading-relaxed">{t.modelProDesc}</div>
