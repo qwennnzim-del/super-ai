@@ -1237,7 +1237,7 @@ export default function App() {
 
   return (
     
-   <div className="flex flex-col h-[100dvh] bg-[#f4f7fb] text-gray-900 font-sans relative overflow-hidden">
+   <div className="flex flex-col h-[100dvh] bg-[#f4f7fb] dark:bg-[#0f0f11] text-gray-900 dark:text-gray-100 font-sans relative overflow-hidden">
       
       {showLoginScreen && !user && (
         <LoginScreen 
@@ -1260,43 +1260,43 @@ export default function App() {
       </AnimatePresence>
 
       {/* Sidebar Layout Layer */}
-      <div className="flex h-[100dvh] relative">
+      <div className="flex h-[100dvh] relative dark:bg-[#0f0f11] dark:text-gray-200">
         <motion.aside
           initial={false}
           animate={{ x: isSidebarOpen ? 0 : "-100%", opacity: isSidebarOpen ? 1 : 0 }}
           transition={{ type: "spring", damping: 25, stiffness: 200 }}
-          className="absolute z-50 left-0 top-0 bottom-0 w-72 bg-[#f4f7fb] border-r border-slate-200/60 flex flex-col pt-6"
+          className="absolute z-50 left-0 top-0 bottom-0 w-72 bg-[#f4f7fb] dark:bg-[#1a1a1f] flex flex-col pt-6 shadow-xl sm:shadow-none"
         >
           <div className="flex items-center justify-between px-4 pb-4 shrink-0">
-            <span className="text-sm font-semibold text-gray-500 uppercase tracking-wider">{t.chatHistory}</span>
-            <button onClick={() => setIsSidebarOpen(false)} className="p-1.5 rounded-full hover:bg-slate-200/50 text-gray-500">
+            <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t.chatHistory}</span>
+            <button onClick={() => setIsSidebarOpen(false)} className="p-1.5 rounded-full hover:bg-slate-200/50 dark:hover:bg-slate-800 text-gray-500 dark:text-gray-400">
                <X size={18} />
             </button>
           </div>
-          <div className="px-4 pb-4 border-b border-slate-200/60 shrink-0">
+          <div className="px-4 pb-4 shrink-0">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
               <input 
                 type="text" 
                 placeholder={t.searchPlaceholder} 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 transition-shadow"
+                className="w-full bg-white dark:bg-[#232329] border border-gray-200 dark:border-gray-800 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-700 transition-shadow dark:text-gray-200"
               />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1">
+          <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1 hide-scrollbar">
              {chats.filter(chat => chat.title.toLowerCase().includes(searchQuery.toLowerCase())).map(chat => (
                 <div 
                   key={chat.id} 
                   onClick={() => { setCurrentChatId(chat.id); setIsSidebarOpen(false); }}
-                  className={`flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer group transition-colors ${currentChatId === chat.id ? 'bg-slate-200/60 font-medium' : 'hover:bg-slate-200/40'}`}
+                  className={`flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer group transition-colors ${currentChatId === chat.id ? 'bg-slate-200/60 dark:bg-slate-800 font-medium' : 'hover:bg-slate-200/40 dark:hover:bg-slate-800/50'}`}
                 >
                    <div className="flex items-center gap-2.5 overflow-hidden">
-                      <MessageSquare className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span className="truncate text-[0.95rem] text-slate-700">{chat.title}</span>
+                      <MessageSquare className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />
+                      <span className="truncate text-[0.95rem] text-slate-700 dark:text-slate-300">{chat.title}</span>
                    </div>
-                   <button onClick={(e) => deleteChat(e, chat.id)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-300 rounded text-slate-500 hover:text-red-500 transition-all">
+                   <button onClick={(e) => deleteChat(e, chat.id)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-slate-300 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-all">
                       <Trash2 size={14} />
                    </button>
                 </div>
@@ -1304,31 +1304,31 @@ export default function App() {
              {chats.length === 0 && !searchQuery && <div className="text-center text-sm text-gray-400 pt-8">{t.emptyHistory}</div>}
              {chats.length > 0 && chats.filter(chat => chat.title.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && <div className="text-center text-sm text-gray-400 pt-8">{t.searchNotFound}</div>}
           </div>
-          <div className="p-4 border-t border-slate-200/60 shrink-0 space-y-2">
+          <div className="p-4 shrink-0 space-y-2">
             {!user ? (
-               <button onClick={handleLogin} className="w-full flex items-center justify-center gap-2 py-2 bg-slate-800 text-white rounded-xl text-sm font-medium hover:bg-slate-700 transition">
+               <button onClick={handleLogin} className="w-full flex items-center justify-center gap-2 py-2 bg-slate-800 dark:bg-slate-700 text-white rounded-xl text-sm font-medium hover:bg-slate-700 dark:hover:bg-slate-600 transition">
                  {t.loginWithGoogle}
                </button>
             ) : (
                <>
                  <div 
                    onClick={() => { setShowProfile(true); setIsSidebarOpen(false); }}
-                   className="flex items-center gap-2 px-2 pb-2 cursor-pointer hover:bg-slate-100/50 rounded-xl transition-colors py-1.5"
+                   className="flex items-center gap-2 px-2 pb-2 cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800 rounded-xl transition-colors py-1.5"
                  >
-                   <div className={`w-8 h-8 rounded-full shrink-0 relative flex items-center justify-center ${user.email === 'cipaonly08@gmail.com' ? 'p-[2px]' : 'bg-slate-200 overflow-hidden'}`}>
+                   <div className={`w-8 h-8 rounded-full shrink-0 relative flex items-center justify-center ${user.email === 'cipaonly08@gmail.com' ? 'p-[2px]' : 'bg-slate-200 dark:bg-slate-700 overflow-hidden'}`}>
                      {user.email === 'cipaonly08@gmail.com' && (
                        <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-500 via-purple-500 via-pink-500 to-orange-500 animate-[spin_3s_linear_infinite]" />
                      )}
-                     <div className={`w-full h-full rounded-full overflow-hidden z-10 relative ${user.email === 'cipaonly08@gmail.com' ? 'bg-white' : ''}`}>
+                     <div className={`w-full h-full rounded-full overflow-hidden z-10 relative ${user.email === 'cipaonly08@gmail.com' ? 'bg-white dark:bg-[#1a1a1f]' : ''}`}>
                        {displayPhotoURL ? <img src={displayPhotoURL} className="w-full h-full object-cover rounded-full" /> : <Bot size={16} />}
                      </div>
                    </div>
                    <div className="flex flex-col overflow-hidden">
-                      <span className="text-sm font-medium truncate">{displayDisplayName}</span>
-                      <span className="text-[10px] text-gray-500 truncate">{user.email}</span>
+                      <span className="text-sm font-medium truncate dark:text-slate-200">{displayDisplayName}</span>
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{user.email}</span>
                    </div>
                  </div>
-                 <button onClick={() => signOut(auth)} className="w-full flex items-center justify-center gap-2 py-2 bg-slate-200 text-slate-700 hover:bg-red-50 hover:text-red-600 rounded-xl text-sm font-medium transition">
+                 <button onClick={() => signOut(auth)} className="w-full flex items-center justify-center gap-2 py-2 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 rounded-xl text-sm font-medium transition">
                    <LogOut size={16} /> Logout
                  </button>
                </>
@@ -1337,27 +1337,89 @@ export default function App() {
         </motion.aside>
 
         {/* Main Interface Wrapper */}
-        <div className="flex-1 flex flex-col min-w-0 transition-all duration-300" style={{ paddingLeft: typeof window !== "undefined" && window.innerWidth >= 640 && isSidebarOpen ? '18rem' : '0' }}>
+        <div 
+          className={`flex-1 flex flex-col min-w-0 relative transition-[padding] duration-300 bg-white dark:bg-[#0f0f11] ${isSidebarOpen ? 'blur-md brightness-90 select-none' : ''}`} 
+          style={{ paddingLeft: typeof window !== "undefined" && window.innerWidth >= 640 && isSidebarOpen ? '18rem' : '0' }}
+        >
+          {isSidebarOpen && (
+            <div 
+              className="absolute inset-0 z-[100] cursor-pointer" 
+              onClick={(e) => { e.stopPropagation(); setIsSidebarOpen(false); }} 
+            />
+          )}
       
+      {/* Animated Loading Gradient (Lava-like & Pulsating) */}
+      <AnimatePresence>
+         {isLoading && (
+           <motion.div 
+             initial={{ opacity: 0 }}
+             animate={{ opacity: 1 }}
+             exit={{ opacity: 0 }}
+             transition={{ duration: 1 }}
+             className="absolute inset-x-0 top-0 h-[450px] pointer-events-none z-0 overflow-hidden mix-blend-multiply dark:mix-blend-screen"
+             style={{ maskImage: 'linear-gradient(to bottom, black 30%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, black 30%, transparent 100%)' }}
+           >
+              <div className="absolute inset-0 opacity-90 dark:opacity-100">
+                <motion.div 
+                  animate={{ 
+                    scale: [1, 1.3, 1], 
+                    x: ["-10%", "20%", "-10%"], 
+                    y: ["-10%", "15%", "-10%"],
+                    rotate: [0, 90, 0],
+                    borderRadius: ["40%", "60%", "40%"],
+                    opacity: [0.7, 1, 0.7]
+                  }}
+                  transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute -top-[10%] left-[0%] w-[60%] h-[400px] bg-purple-600/80 dark:bg-purple-500/80 filter blur-[80px]" 
+                />
+                <motion.div 
+                  animate={{ 
+                    scale: [1, 1.4, 1], 
+                    x: ["10%", "-20%", "10%"], 
+                    y: ["0%", "20%", "0%"],
+                    rotate: [0, -90, 0],
+                    borderRadius: ["50%", "30%", "50%"],
+                    opacity: [0.8, 1, 0.8]
+                  }}
+                  transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+                  className="absolute -top-[5%] left-[20%] w-[70%] h-[450px] bg-blue-600/80 dark:bg-blue-500/80 filter blur-[90px]" 
+                />
+                <motion.div 
+                  animate={{ 
+                    scale: [1, 1.2, 1], 
+                    x: ["20%", "-30%", "20%"], 
+                    y: ["-20%", "10%", "-20%"],
+                    rotate: [0, 45, 0],
+                    borderRadius: ["60%", "40%", "60%"],
+                    opacity: [0.6, 0.9, 0.6]
+                  }}
+                  transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+                  className="absolute -top-[15%] right-[0%] w-[60%] h-[350px] bg-orange-500/80 dark:bg-orange-500/80 filter blur-[80px]" 
+                />
+              </div>
+           </motion.div>
+         )}
+      </AnimatePresence>
+
       {/* Header */}
-      <header className="flex items-center justify-between px-4 sm:px-6 py-4 pt-6 z-10 shrink-0 select-none">
-        <div className="flex items-center gap-4 text-gray-700">
+      <header className="flex items-center justify-between px-4 sm:px-6 py-4 pt-6 z-10 shrink-0 select-none relative">
+        <div className="flex items-center gap-4 text-gray-700 dark:text-gray-200 relative z-10">
           <motion.button 
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setIsSidebarOpen(true)}
-            className="p-2 -ml-2 rounded-full hover:bg-gray-200/50 transition-colors"
+            className="p-2 -ml-2 rounded-full hover:bg-gray-200/50 dark:hover:bg-slate-800 transition-colors"
           >
             <TextAlignStartIcon className="w-[22px] h-[22px]" strokeWidth={1.75} />
           </motion.button>
           <span className="text-xl font-medium tracking-tight">SuperAI</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 relative z-10">
           <motion.button 
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={createNewChat}
-            className="p-2 rounded-full hover:bg-gray-200/50 transition-colors text-gray-600 hover:text-gray-900"
+            className="p-2 rounded-full hover:bg-gray-200/50 dark:hover:bg-slate-800 transition-colors text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
           >
             <CircleFadingPlusIcon className="w-[22px] h-[22px]" strokeWidth={1.75} />
           </motion.button>
@@ -1366,7 +1428,7 @@ export default function App() {
                whileHover={{ scale: 1.05 }}
                whileTap={{ scale: 0.95 }}
                onClick={handleLogin}
-               className="p-2 rounded-full hover:bg-gray-200/50 transition-colors text-gray-600 hover:text-gray-900"
+               className="p-2 rounded-full hover:bg-gray-200/50 dark:hover:bg-slate-800 transition-colors text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
              >
                <CircleUserRoundIcon className="w-[22px] h-[22px]" strokeWidth={1.75} />
              </motion.button>
@@ -1380,8 +1442,8 @@ export default function App() {
                {user.email === 'cipaonly08@gmail.com' && (
                  <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-500 via-purple-500 via-pink-500 to-orange-500 animate-[spin_3s_linear_infinite]" />
                )}
-               <div className={`w-full h-full rounded-full overflow-hidden z-10 relative ${user.email === 'cipaonly08@gmail.com' ? 'bg-white border text-[#cbd5e1]' : 'border border-[#cbd5e1]'}`}>
-                 {displayPhotoURL ? <img src={displayPhotoURL} className="w-full h-full object-cover rounded-full" /> : <Bot size={20} />}
+               <div className={`w-full h-full rounded-full overflow-hidden z-10 relative ${user.email === 'cipaonly08@gmail.com' ? 'bg-white dark:bg-[#1a1a1f] border text-[#cbd5e1] dark:border-[#333]' : 'border border-[#cbd5e1] dark:border-[#333]'}`}>
+                 {displayPhotoURL ? <img src={displayPhotoURL} className="w-full h-full object-cover rounded-full" /> : <Bot size={20} className="dark:text-gray-400" />}
                </div>
              </motion.div>
           )}
@@ -1418,10 +1480,10 @@ export default function App() {
                   >
                     <img src="/logo.png" alt="Logo" className="w-14 h-14 sm:w-16 sm:h-16 object-contain" />
                     <div className="space-y-1">
-                      <h1 className="text-[1.75rem] sm:text-3xl font-medium text-gray-800">
+                      <h1 className="text-[1.75rem] sm:text-3xl font-medium text-gray-800 dark:text-gray-200">
                         {t.hello} <span className="gradient-text-animated">{displayDisplayName.split(' ')[0]}</span>
                       </h1>
-                      <h2 className="text-[2.5rem] sm:text-[3.6rem] leading-[1.1] font-medium tracking-tight text-gray-900 mt-1">
+                      <h2 className="text-[2.5rem] sm:text-[3.6rem] leading-[1.1] font-medium tracking-tight text-gray-900 mt-1 dark:text-gray-100">
                         {t.howCanIHelp}
                       </h2>
                     </div>
@@ -1446,15 +1508,15 @@ export default function App() {
                         {message.attachments && message.attachments.length > 0 && (
                           <div className="flex flex-wrap justify-end gap-2 mb-2">
                              {message.attachments.map((att, i) => (
-                               <div key={i} className="flex items-center gap-2 bg-gray-100/50 px-3 py-1.5 rounded-xl border border-gray-200/60">
-                                  {att.mimeType?.startsWith('image/') ? <ImageIcon className="w-4 h-4 text-gray-500" /> : <FileText className="w-4 h-4 text-gray-500" />}
-                                  <span className="text-xs text-gray-700 font-medium truncate max-w-[150px]">{att.name}</span>
+                               <div key={i} className="flex items-center gap-2 bg-gray-100/50 dark:bg-slate-800/50 px-3 py-1.5 rounded-xl border border-gray-200/60 dark:border-slate-700/60">
+                                  {att.mimeType?.startsWith('image/') ? <ImageIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" /> : <FileText className="w-4 h-4 text-gray-500 dark:text-gray-400" />}
+                                  <span className="text-xs text-gray-700 dark:text-gray-300 font-medium truncate max-w-[150px]">{att.name}</span>
                                </div>
                              ))}
                           </div>
                         )}
                         <div 
-                          className={`bg-gray-100 text-gray-900 px-5 py-3.5 rounded-3xl rounded-tr-md leading-relaxed text-left whitespace-pre-wrap font-medium select-text max-w-full overflow-hidden shadow-sm border border-gray-200/50 ${textSize === 'small' ? 'text-[0.95rem]' : textSize === 'large' ? 'text-[1.25rem]' : 'text-[1.1rem] sm:text-[1.15rem]'}`}
+                          className={`bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-gray-100 px-5 py-3.5 rounded-3xl rounded-tr-md leading-relaxed text-left whitespace-pre-wrap font-medium select-text max-w-full overflow-hidden shadow-sm border border-gray-200/50 dark:border-slate-700/50 ${textSize === 'small' ? 'text-[0.95rem]' : textSize === 'large' ? 'text-[1.25rem]' : 'text-[1.1rem] sm:text-[1.15rem]'}`}
                         >
                           {message.text}
                         </div>
@@ -1476,7 +1538,7 @@ export default function App() {
                                          </mask>
                                        </defs>
                                      </svg>
-                                     <div className="box"></div>
+                                     <div className="box dark:bg-gray-200"></div>
                                    </div>
                                </div>
                                <AnimatePresence>
@@ -1486,7 +1548,7 @@ export default function App() {
                                        animate={{ opacity: 1, scale: 1, x: -5 }}
                                        exit={{ opacity: 0, scale: 0.5, x: -20 }}
                                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                                       className="w-[30px] h-[30px] flex items-center justify-center bg-white rounded-full shadow-sm border border-gray-100 z-0"
+                                       className="w-[30px] h-[30px] flex items-center justify-center bg-white dark:bg-slate-800 rounded-full shadow-sm border border-gray-100 dark:border-slate-700 z-0"
                                      >
                                         {loadingIconType === "google" && <Search className="w-4 h-4 text-blue-500" />}
                                         {loadingIconType === "map" && <MapIcon className="w-4 h-4 text-green-500" />}
@@ -1497,7 +1559,7 @@ export default function App() {
                                   )}
                                </AnimatePresence>
                              </div>
-                             <span className={`text-[0.95rem] font-medium tracking-wide animate-pulse ml-1 ${isSearching ? 'bg-clip-text text-transparent bg-gradient-to-r from-[#4285F4] via-[#EA4335] via-[#FBBC05] to-[#34A853]' : 'text-gray-500'}`}>
+                             <span className={`text-[0.95rem] font-medium tracking-wide animate-pulse ml-1 ${isSearching ? 'bg-clip-text text-transparent bg-gradient-to-r from-[#4285F4] via-[#EA4335] via-[#FBBC05] to-[#34A853]' : 'text-gray-500 dark:text-gray-400'}`}>
                                 {loadingText}
                              </span>
                            </div>
@@ -1505,7 +1567,7 @@ export default function App() {
                           <div className="flex flex-col w-full">
                             <div className="flex items-center gap-3 mb-2 px-1">
                               <img src="/logo.png" alt="Logo" className="w-8 h-8 shrink-0 object-contain" />
-                              <span className="font-semibold text-gray-800 text-[1.05rem]">SuperAI</span>
+                              <span className="font-semibold text-gray-800 dark:text-gray-200 text-[1.05rem]">SuperAI</span>
                             </div>
                             <div className="pl-11 w-full max-w-full">
                                <InteractiveTable 
@@ -1560,7 +1622,7 @@ export default function App() {
                               <span className="font-semibold text-gray-800 text-[1.05rem]">SuperAI</span>
                             </div>
                             <div 
-                              className="markdown-body w-full max-w-full overflow-x-auto text-gray-800 pl-11"
+                              className="markdown-body w-full max-w-full overflow-x-auto text-gray-800 dark:text-gray-200 pl-11"
                               style={{ fontSize: textSize === 'small' ? '0.9rem' : textSize === 'large' ? '1.25rem' : '1.05rem' }}
                             >
                                {(() => {
@@ -1620,8 +1682,8 @@ export default function App() {
                                  return (
                                    <>
                                      {thinkingText && (
-                                       <details className="mb-4 bg-gray-50/50 border border-gray-100 rounded-xl overflow-hidden group">
-                                          <summary className="px-4 py-3 cursor-pointer font-medium text-gray-500 hover:text-gray-700 transition-colors list-none select-none flex items-center justify-between">
+                                       <details className="mb-4 bg-gray-50/50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-700/50 rounded-xl overflow-hidden group">
+                                          <summary className="px-4 py-3 cursor-pointer font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors list-none select-none flex items-center justify-between">
                                              <div className="flex items-center gap-2">
                                                 <div className="w-5 h-5 flex items-center justify-center shrink-0">
                                                    <div className="loader scale-[0.6]">
@@ -1635,14 +1697,14 @@ export default function App() {
                                                          </mask>
                                                        </defs>
                                                      </svg>
-                                                     <div className="box"></div>
+                                                     <div className="box dark:bg-gray-200"></div>
                                                    </div>
                                                 </div>
                                                 <span className="text-sm">Proses Berpikir</span>
                                              </div>
-                                             <ChevronDown className="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform duration-200" />
+                                             <ChevronDown className="w-4 h-4 text-gray-400 dark:text-gray-500 group-open:rotate-180 transition-transform duration-200" />
                                           </summary>
-                                          <div className="p-4 pt-1 text-[0.9rem] text-gray-600 bg-gray-50/50 markdown-body prose-sm prose-gray max-w-none">
+                                          <div className="p-4 pt-1 text-[0.9rem] text-gray-600 dark:text-gray-300 bg-gray-50/50 dark:bg-transparent markdown-body prose-sm prose-gray dark:prose-invert max-w-none">
                                             <Markdown remarkPlugins={[remarkGfm]} components={{ code: CodeBlock }}>{thinkingText}</Markdown>
                                           </div>
                                        </details>
@@ -2033,7 +2095,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Input Dock */}
-      <div className={`absolute inset-x-0 bottom-0 bg-gradient-to-t pt-10 pb-6 px-4 sm:px-6 z-20 ${isDarkMode ? 'from-[#121212] via-[#121212] to-transparent' : 'from-[#f4f7fb] via-[#f4f7fb] to-transparent'}`}>
+      <div className={`absolute inset-x-0 bottom-0 bg-gradient-to-t pt-10 pb-6 px-4 sm:px-6 z-20 ${isDarkMode ? 'from-[#121212] via-[#121212] to-transparent' : 'from-[#f4f7fb] via-[#f4f7fb] dark:from-[#0f0f11] dark:via-[#0f0f11] to-transparent'}`}>
         <div className="max-w-3xl mx-auto relative group">
           {/* Border Glow Layer */}
           <div className="absolute -inset-1 blur-md rounded-[2.1rem] overflow-hidden z-0 opacity-30 group-focus-within:opacity-60 transition-opacity duration-500 pointer-events-none">
@@ -2047,27 +2109,27 @@ export default function App() {
              <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] aspect-square bg-[conic-gradient(from_0deg,transparent_0_160deg,#a855f7_220deg,#ec4899_290deg,#f97316_360deg)] animate-[spin_0.8s_linear_infinite] transition-opacity duration-300 ${isTyping ? 'opacity-100' : 'opacity-0'}`} />
           </div>
 
-          <div className="bg-white rounded-[calc(2rem-1.5px)] shadow-sm p-2 sm:p-3 pb-3 relative z-10 m-[1.5px] focus-within:ring-4 focus-within:ring-purple-100/50 transition-all duration-300">
+          <div className="bg-white dark:bg-[#1a1a1f] rounded-[calc(2rem-1.5px)] shadow-sm p-2 sm:p-3 pb-3 relative z-10 m-[1.5px] focus-within:ring-4 focus-within:ring-purple-100/50 dark:focus-within:ring-purple-900/50 transition-all duration-300">
             
             {/* Attachment preview */}
             {currentAttachments.length > 0 && (
               <div className="flex flex-wrap gap-2 px-4 pt-2 pb-1">
                 {currentAttachments.map((att, idx) => (
-                  <div key={idx} className="flex items-center gap-2 bg-white border border-gray-200 shadow-sm px-3 py-1.5 rounded-full">
+                  <div key={idx} className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-sm px-3 py-1.5 rounded-full">
                     {att.mimeType?.startsWith('image/') ? (
-                      <div className="w-5 h-5 rounded overflow-hidden shrink-0 ring-1 ring-black/5">
+                      <div className="w-5 h-5 rounded overflow-hidden shrink-0 ring-1 ring-black/5 dark:ring-white/10">
                          <img src={att.dataUrl} alt={att.name} className="w-full h-full object-cover" />
                       </div>
                     ) : (
                       <FileText className="w-4 h-4 text-blue-500" />
                     )}
-                    <span className="text-xs font-semibold text-gray-700 max-w-[120px] truncate">{att.name}</span>
+                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 max-w-[120px] truncate">{att.name}</span>
                     {att.file && (
                       <span className="text-[10px] text-gray-400 font-medium whitespace-nowrap">
                         {(att.file.size / 1024).toFixed(0)} KB
                       </span>
                     )}
-                    <button onClick={() => removeAttachment(idx)} className="ml-1 p-0.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+                    <button onClick={() => removeAttachment(idx)} className="ml-1 p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -2081,7 +2143,7 @@ export default function App() {
               onChange={handleInput}
               placeholder={appMode === 'generate_image' ? "Deskripsikan gambar yang ingin dibuat..." : appMode === 'search_image' ? "Apa yang ingin Anda cari..." : appMode === 'sheets' ? "Modifikasi data di Google Sheets..." : t.typeMessage}
               rows={1}
-              className="w-full bg-transparent resize-none outline-none px-4 pt-3 pb-2 text-[1.05rem] text-gray-900 placeholder:text-gray-500 overflow-hidden"
+              className="w-full bg-transparent resize-none outline-none px-4 pt-3 pb-2 text-[1.05rem] text-gray-900 dark:text-gray-100 placeholder:text-gray-500 dark:placeholder:text-gray-400 overflow-hidden"
             />
             
             <div className="flex items-center justify-between px-2 pt-2 mt-1 select-none">
@@ -2090,24 +2152,24 @@ export default function App() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setAttachmentMenuOpen(!attachmentMenuOpen)}
-                  className="p-2.5 rounded-full hover:bg-gray-100 transition-colors text-gray-600"
+                  className="p-2.5 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors text-gray-600 dark:text-gray-400"
                 >
                   <Plus className={`w-[22px] h-[22px] transition-transform ${attachmentMenuOpen ? 'rotate-45' : ''}`} strokeWidth={1.75} />
                 </motion.button>
                 
                 {attachmentMenuOpen && (
-                  <div className="absolute bottom-12 left-0 bg-white shadow-lg border border-gray-100 rounded-2xl py-2 w-48 flex flex-col z-50">
+                  <div className="absolute bottom-12 left-0 bg-white dark:bg-slate-800 shadow-lg border border-gray-100 dark:border-slate-700 rounded-2xl py-2 w-48 flex flex-col z-50">
                     <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple />
                     <input type="file" accept="image/*" ref={imageInputRef} onChange={handleFileChange} className="hidden" multiple />
                     <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} onChange={handleFileChange} className="hidden" />
-                    <button onClick={() => cameraInputRef.current?.click()} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left">
-                       <Camera className="w-4 h-4 text-gray-500" /> Kamera
+                    <button onClick={() => cameraInputRef.current?.click()} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors text-left">
+                       <Camera className="w-4 h-4 text-gray-500 dark:text-gray-400" /> Kamera
                     </button>
-                    <button onClick={() => imageInputRef.current?.click()} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left">
-                       <ImageIcon className="w-4 h-4 text-gray-500" /> Gambar
+                    <button onClick={() => imageInputRef.current?.click()} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors text-left">
+                       <ImageIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" /> Gambar
                     </button>
-                    <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left">
-                       <FileText className="w-4 h-4 text-gray-500" /> File
+                    <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors text-left">
+                       <FileText className="w-4 h-4 text-gray-500 dark:text-gray-400" /> File
                     </button>
                   </div>
                 )}
@@ -2117,7 +2179,7 @@ export default function App() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setFeatureMenuOpen(!featureMenuOpen)}
-                    className="p-2.5 rounded-full hover:bg-gray-100 transition-colors text-gray-600"
+                    className="p-2.5 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors text-gray-600 dark:text-gray-400"
                   >
                     <GripHorizontalIcon className={`w-[22px] h-[22px] transition-transform ${featureMenuOpen ? 'rotate-90' : ''}`} strokeWidth={1.75} />
                   </motion.button>
@@ -2129,33 +2191,33 @@ export default function App() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute bottom-12 left-0 bg-white shadow-xl shadow-black/5 border border-gray-100 rounded-3xl p-3 w-[260px] grid grid-cols-3 gap-2 z-50 origin-bottom-left"
+                        className="absolute bottom-12 left-0 bg-white dark:bg-slate-800 shadow-xl shadow-black/5 border border-gray-100 dark:border-slate-700 rounded-3xl p-3 w-[260px] grid grid-cols-3 gap-2 z-50 origin-bottom-left"
                       >
-                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'generate_image' ? 'chat' : 'generate_image'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'generate_image' ? 'bg-blue-100/50' : 'hover:bg-gray-50'}`}>
-                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'generate_image' ? 'bg-blue-500 text-white' : 'bg-blue-50/80 text-blue-500 group-hover:bg-blue-100'}`}><Palette className="w-5 h-5"/></div>
-                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Buat Gambar</span>
+                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'generate_image' ? 'chat' : 'generate_image'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'generate_image' ? 'bg-blue-100/50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-slate-700'}`}>
+                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'generate_image' ? 'bg-blue-500 text-white' : 'bg-blue-50/80 dark:bg-blue-900/40 text-blue-500 dark:text-blue-400 group-hover:bg-blue-100 dark:group-hover:bg-blue-800/50'}`}><Palette className="w-5 h-5"/></div>
+                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 dark:text-gray-300 text-center leading-[1.2]">Buat Gambar</span>
                          </button>
-                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'search_image' ? 'chat' : 'search_image'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'search_image' ? 'bg-orange-100/50' : 'hover:bg-gray-50'}`}>
-                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'search_image' ? 'bg-orange-500 text-white' : 'bg-orange-50/80 text-orange-500 group-hover:bg-orange-100'}`}><Search className="w-5 h-5"/></div>
-                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Cari Gambar</span>
+                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'search_image' ? 'chat' : 'search_image'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'search_image' ? 'bg-orange-100/50 dark:bg-orange-900/30' : 'hover:bg-gray-50 dark:hover:bg-slate-700'}`}>
+                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'search_image' ? 'bg-orange-500 text-white' : 'bg-orange-50/80 dark:bg-orange-900/40 text-orange-500 dark:text-orange-400 group-hover:bg-orange-100 dark:group-hover:bg-orange-800/50'}`}><Search className="w-5 h-5"/></div>
+                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 dark:text-gray-300 text-center leading-[1.2]">Cari Gambar</span>
                          </button>
-                         <button onClick={() => { setFeatureMenuOpen(false); setIsDrivePickerOpen(true); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${isDrivePickerOpen ? 'bg-blue-100/50' : 'hover:bg-gray-50'}`}>
-                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${isDrivePickerOpen ? 'bg-blue-50 text-white' : 'bg-blue-50 text-blue-500 group-hover:bg-blue-100'}`}>
+                         <button onClick={() => { setFeatureMenuOpen(false); setIsDrivePickerOpen(true); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${isDrivePickerOpen ? 'bg-blue-100/50 dark:bg-blue-900/30' : 'hover:bg-gray-50 dark:hover:bg-slate-700'}`}>
+                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${isDrivePickerOpen ? 'bg-blue-50 dark:bg-blue-900/40 text-white' : 'bg-blue-50 dark:bg-blue-900/40 text-blue-500 dark:text-blue-400 group-hover:bg-blue-100 dark:group-hover:bg-blue-800/50'}`}>
                              <GoogleDriveIcon className="w-6 h-6" />
                            </div>
-                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Google Drive</span>
+                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 dark:text-gray-300 text-center leading-[1.2]">Google Drive</span>
                          </button>
-                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'sheets' ? 'chat' : 'sheets'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'sheets' ? 'bg-green-100/50' : 'hover:bg-gray-50'}`}>
-                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'sheets' ? 'bg-green-50 text-white' : 'bg-green-50 text-green-500 group-hover:bg-green-100'}`}>
+                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'sheets' ? 'chat' : 'sheets'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'sheets' ? 'bg-green-100/50 dark:bg-green-900/30' : 'hover:bg-gray-50 dark:hover:bg-slate-700'}`}>
+                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'sheets' ? 'bg-green-50 dark:bg-green-900/40 text-white' : 'bg-green-50 dark:bg-green-900/40 text-green-500 dark:text-green-400 group-hover:bg-green-100 dark:group-hover:bg-green-800/50'}`}>
                               <GoogleSheetsIcon className="w-6 h-6" />
                            </div>
-                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Google Sheets</span>
+                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 dark:text-gray-300 text-center leading-[1.2]">Google Sheets</span>
                          </button>
-                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'gmail' ? 'chat' : 'gmail'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'gmail' ? 'bg-red-100/50' : 'hover:bg-gray-50'}`}>
-                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'gmail' ? 'bg-red-50 text-white' : 'bg-red-50 text-red-500 group-hover:bg-red-100'}`}>
+                         <button onClick={() => { setFeatureMenuOpen(false); setAppMode(appMode === 'gmail' ? 'chat' : 'gmail'); }} className={`flex flex-col items-center justify-start gap-2 p-2 rounded-2xl transition-colors group ${appMode === 'gmail' ? 'bg-red-100/50 dark:bg-red-900/30' : 'hover:bg-gray-50 dark:hover:bg-slate-700'}`}>
+                           <div className={`w-[42px] h-[42px] rounded-full flex items-center justify-center transition-colors ${appMode === 'gmail' ? 'bg-red-50 dark:bg-red-900/40 text-white' : 'bg-red-50 dark:bg-red-900/40 text-red-500 dark:text-red-400 group-hover:bg-red-100 dark:group-hover:bg-red-800/50'}`}>
                               <GmailIcon className="w-6 h-6" />
                            </div>
-                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 text-center leading-[1.2]">Gmail</span>
+                           <span className="text-[10px] sm:text-[11px] font-medium text-gray-600 dark:text-gray-300 text-center leading-[1.2]">Gmail</span>
                          </button>
                       </motion.div>
                     )}
@@ -2168,12 +2230,12 @@ export default function App() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setModelMenuOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-gray-100 transition-colors text-gray-700 text-sm font-medium"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors text-gray-700 dark:text-gray-300 text-sm font-medium"
                 >
                   {aiModel === "gemini-3.5-flash" ? t.fast : t.pro}
-                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                  <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                 </motion.button>
-                <div className="w-px h-5 bg-gray-200 mx-1 hidden sm:block" />
+                <div className="w-px h-5 bg-gray-200 dark:bg-slate-700 mx-1 hidden sm:block" />
                 <div className="relative flex items-center justify-center w-11 h-11">
                   <AnimatePresence mode="popLayout" initial={false}>
                     {isLoading ? (
@@ -2244,28 +2306,28 @@ export default function App() {
            animate={{ opacity: 1, scale: 1 }}
            exit={{ opacity: 0, scale: 0.95 }}
            transition={{ duration: 0.2 }}
-           className="fixed inset-0 z-[110] bg-white flex flex-col font-sans"
+           className="fixed inset-0 z-[110] bg-white dark:bg-[#0f0f11] flex flex-col font-sans"
          >
-           <header className="flex items-center px-4 py-4 border-b border-gray-100 shrink-0 bg-white relative justify-center">
-             <button onClick={() => setShowProfile(false)} className="p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-500 absolute left-4 z-10">
+           <header className="flex items-center px-4 py-4 border-b border-gray-100 dark:border-slate-800 shrink-0 bg-white dark:bg-[#0f0f11] relative justify-center">
+             <button onClick={() => setShowProfile(false)} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors text-gray-500 dark:text-gray-400 absolute left-4 z-10">
                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
              </button>
              <div className="flex gap-6 text-sm sm:text-base font-semibold cursor-pointer select-none">
                <div 
-                 className={`py-1 border-b-2 transition-colors ${profileTab === 'profile' ? 'text-gray-900 border-gray-900' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+                 className={`py-1 border-b-2 transition-colors ${profileTab === 'profile' ? 'text-gray-900 dark:text-white border-gray-900 dark:border-white' : 'text-gray-400 border-transparent hover:text-gray-600 dark:hover:text-gray-300'}`}
                  onClick={() => setProfileTab('profile')}
                >
                  {t.myProfile}
                </div>
                <div 
-                 className={`py-1 border-b-2 transition-colors ${profileTab === 'settings' ? 'text-gray-900 border-gray-900' : 'text-gray-400 border-transparent hover:text-gray-600'}`}
+                 className={`py-1 border-b-2 transition-colors ${profileTab === 'settings' ? 'text-gray-900 dark:text-white border-gray-900 dark:border-white' : 'text-gray-400 border-transparent hover:text-gray-600 dark:hover:text-gray-300'}`}
                  onClick={() => setProfileTab('settings')}
                >
                  {t.settings}
                </div>
              </div>
            </header>
-           <div className="flex-1 overflow-hidden relative bg-[#f4f7fb]">
+           <div className="flex-1 overflow-hidden relative bg-[#f4f7fb] dark:bg-[#0a0a0c]">
              <div 
                className="flex w-[200%] h-full transition-transform duration-300 ease-in-out" 
                style={{ transform: `translateX(${profileTab === 'profile' ? '0' : '-50%'})` }}
@@ -2275,25 +2337,31 @@ export default function App() {
                  <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
                    
                    {/* Profile Header Card */}
-                   <div className="bg-white border border-gray-100 rounded-3xl p-6 sm:p-8 shadow-sm mb-6 flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8 relative overflow-hidden">
-                     {/* Floating Pink Gradient Animation */}
-                     <div className="absolute inset-0 z-0 pointer-events-none opacity-40">
-                       <motion.div
-                         animate={{ x: [0, 40, -20, 0], y: [0, -40, 20, 0], scale: [1, 1.2, 0.9, 1] }}
-                         transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-                         className="absolute -top-10 -left-10 w-48 h-48 sm:w-64 sm:h-64 bg-pink-300 rounded-full mix-blend-multiply blur-3xl opacity-50"
-                       />
-                       <motion.div
-                         animate={{ x: [0, -30, 40, 0], y: [0, 30, -30, 0], scale: [1, 1.4, 0.8, 1] }}
-                         transition={{ duration: 15, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-                         className="absolute top-1/4 right-0 w-56 h-56 sm:w-72 sm:h-72 bg-gradient-to-r from-pink-200 to-rose-300 rounded-full mix-blend-multiply blur-3xl opacity-50"
-                       />
-                       <motion.div
-                         animate={{ x: [0, 30, -50, 0], y: [0, 50, -20, 0], scale: [1, 1.1, 1.3, 1] }}
-                         transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 4 }}
-                         className="absolute -bottom-20 left-1/3 w-64 h-64 sm:w-80 sm:h-80 bg-fuchsia-300 rounded-full mix-blend-multiply blur-3xl opacity-40"
-                       />
-                     </div>
+                   <div className="relative rounded-[2rem] p-[2px] mb-6 overflow-hidden group">
+                     {/* Rotating Border Glow */}
+                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] aspect-square bg-[conic-gradient(from_0deg,transparent_0_60deg,#FF6B00_120deg,#8A2BE2_180deg,#FF007A_240deg,transparent_360deg)] animate-[spin_4s_linear_infinite]" />
+                     
+                     {/* Inner Card (Glassmorphism + Liquid Gradient) */}
+                     <div className="relative bg-white/70 dark:bg-slate-900/70 backdrop-blur-3xl rounded-[calc(2rem-2px)] p-6 sm:p-8 flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8 overflow-hidden z-10 shadow-2xl">
+                       
+                       {/* Floating Liquid Gradient Animation */}
+                       <div className="absolute inset-0 z-0 pointer-events-none opacity-80 mix-blend-multiply dark:mix-blend-screen">
+                         <motion.div
+                           animate={{ x: [0, 40, -20, 0], y: [0, -40, 20, 0], scale: [1, 1.2, 0.9, 1], borderRadius: ["40%", "60%", "40%"] }}
+                           transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+                           className="absolute -top-10 -left-10 w-48 h-48 sm:w-72 sm:h-72 bg-[#FF6B00]/40 dark:bg-[#FF6B00]/30 filter blur-[70px]"
+                         />
+                         <motion.div
+                           animate={{ x: [0, -30, 40, 0], y: [0, 30, -30, 0], scale: [1, 1.4, 0.8, 1], borderRadius: ["50%", "30%", "50%"] }}
+                           transition={{ duration: 15, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+                           className="absolute top-1/4 right-0 w-56 h-56 sm:w-80 sm:h-80 bg-[#8A2BE2]/40 dark:bg-[#8A2BE2]/30 filter blur-[80px]"
+                         />
+                         <motion.div
+                           animate={{ x: [0, 30, -50, 0], y: [0, 50, -20, 0], scale: [1, 1.1, 1.3, 1], borderRadius: ["60%", "40%", "60%"] }}
+                           transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 4 }}
+                           className="absolute -bottom-20 left-1/3 w-64 h-64 sm:w-80 sm:h-80 bg-[#FF007A]/40 dark:bg-[#FF007A]/30 filter blur-[70px]"
+                         />
+                       </div>
                      
                      {/* Avatar */}
                      <div className="relative group shrink-0 z-10">
@@ -2332,14 +2400,14 @@ export default function App() {
                          </div>
                        ) : (
                          <div className="flex items-center gap-2 group/name cursor-pointer mb-1 relative" onClick={() => { setEditNameValue(displayDisplayName); setIsEditingName(true); }}>
-                           <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">{displayDisplayName}</h3>
-                           <div className="opacity-0 group-hover/name:opacity-100 transition-opacity p-1.5 text-blue-500 hover:text-blue-700 bg-blue-50/0 hover:bg-blue-50 rounded-lg">
+                           <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white tracking-tight">{displayDisplayName}</h3>
+                           <div className="opacity-0 group-hover/name:opacity-100 transition-opacity p-1.5 text-pink-500 hover:text-pink-600 bg-white/50 dark:bg-black/20 hover:bg-white/80 dark:hover:bg-black/40 rounded-lg">
                              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                            </div>
                          </div>
                        )}
                        
-                       <p className="text-sm text-gray-500 font-medium mb-4">{t.dearUser}</p>
+                       <p className="text-sm text-gray-600 dark:text-gray-300 font-medium mb-4">{t.dearUser}</p>
                        
                        {isEditingBio ? (
                          <div className="flex flex-col items-center sm:items-start gap-3 w-full">
@@ -2356,16 +2424,17 @@ export default function App() {
                            </div>
                          </div>
                        ) : (
-                         <div className="group/bio cursor-pointer w-full max-w-[400px] relative p-3 sm:-ml-3 rounded-xl hover:bg-gray-50 transition-colors" onClick={() => { setEditBioValue(userBio || ''); setIsEditingBio(true); }}>
-                           <p className={`text-sm leading-relaxed ${userBio ? 'text-gray-700' : 'text-gray-400 italic'}`}>
+                         <div className="group/bio cursor-pointer w-full max-w-[400px] relative p-3 sm:-ml-3 rounded-xl hover:bg-white/40 dark:hover:bg-black/20 transition-colors" onClick={() => { setEditBioValue(userBio || ''); setIsEditingBio(true); }}>
+                           <p className={`text-sm leading-relaxed ${userBio ? 'text-gray-800 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400 italic'}`}>
                              {userBio || (language === 'en' ? 'Add a short bio to introduce yourself...' : 'Tambahkan bio singkat untuk memperkenalkan diri...')}
                            </p>
-                           <div className="opacity-0 group-hover/bio:opacity-100 transition-opacity absolute top-3 right-3 p-1.5 text-blue-500 bg-blue-50 hover:bg-blue-100 rounded-lg">
+                           <div className="opacity-0 group-hover/bio:opacity-100 transition-opacity absolute top-3 right-3 p-1.5 text-pink-500 bg-white/50 dark:bg-black/20 hover:bg-white/80 dark:hover:bg-black/40 rounded-lg">
                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                            </div>
                          </div>
                        )}
                      </div>
+                   </div>
                    </div>
 
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
